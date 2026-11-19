@@ -152,6 +152,23 @@ class CheckinRequest(BaseModel):
     code: str = Field(min_length=4, max_length=200)
 
 
+# --- Akıllı slot önerisi ---
+class SuggestionRead(BaseModel):
+    room_id: int
+    room_name: str
+    room_type: RoomType
+    start_time: datetime
+    end_time: datetime
+    remaining_seats: int
+    same_room: bool
+    score: float                 # 0..1, yüksek = daha iyi (bkz. services/suggestions.py)
+    proximity_score: float       # istenen saate yakınlık
+    fit_score: float             # oda tipi / kapasite uyumu
+    quiet_score: float           # 1 - geçmiş doluluk
+    historical_occupancy: float  # geçmişte bu saatlerde doluluk oranı
+    reasons: list[str]           # arayüzde gösterilecek kısa açıklamalar
+
+
 # --- Ceza / e-posta / tatil ---
 class PenaltyRead(ORMModel):
     id: int

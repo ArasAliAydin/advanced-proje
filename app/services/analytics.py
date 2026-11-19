@@ -80,6 +80,12 @@ def _matrix(session: Session, d_from: date, d_to: date, room_id: int | None) -> 
     return reserved, capacity
 
 
+def occupancy_rates(session: Session, d_from: date, d_to: date, room_id: int | None = None) -> dict[Key, float]:
+    """(haftanın günü, saat) -> doluluk oranı (0..1). Öneri algoritması kullanır."""
+    reserved, capacity = _matrix(session, d_from, d_to, room_id)
+    return {key: min(1.0, reserved[key] / cap) for key, cap in capacity.items() if cap}
+
+
 def heatmap(session: Session, d_from: date, d_to: date, room_id: int | None = None) -> list[OccupancyCell]:
     reserved, capacity = _matrix(session, d_from, d_to, room_id)
     return [

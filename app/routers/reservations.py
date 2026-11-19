@@ -1,13 +1,15 @@
+from contextlib import suppress
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi.encoders import jsonable_encoder
 from sqlmodel import select
 
 from app.core import clock
 from app.core.deps import AdminUser, CurrentUser, SessionDep
 from app.models import Reservation, ReservationStatus, Role, Room, User
 from app.schemas import CheckinRequest, ReservationCreate, ReservationRead
-from app.services import exports
+from app.services import exports, suggestions
 from app.services import reservation_service as rs
 
 router = APIRouter(prefix="/reservations", tags=["Rezervasyonlar"])
@@ -30,8 +32,20 @@ def _get_owned(session, reservation_id: int, user: User) -> Reservation:
 
 @router.post("", response_model=ReservationRead, status_code=status.HTTP_201_CREATED)
 def create_reservation(data: ReservationCreate, session: SessionDep, user: CurrentUser):
-    """Rezervasyon oluşturur. Slot doluysa 409 `slot_full` döner; bu durumda bekleme listesine katılınabilir."""
-    reservation = rs.book(session, user, data.room_id, data.start_time, data.end_time)
+    """Rezervasyon oluşturur.
+
+    Slot doluysa 409 `slot_full` döner; yanıtın `suggestions` alanında kurallara uyan
+    alternatif slotlar vardır (bkz. `GET /suggestions`). Bekleme listesine de katılınabilir.
+    """
+    try:
+        reservation = rs.book(session, user, data.room_id, data.start_time, data.end_time)
+    except rs.BookingError as exc:
+        if exc.code == "slot_full":
+            # Öneri hesabındaki bir sorun asıl hatayı (slot_full) gizlememeli
+            with suppress(rs.BookingError):
+                found = suggestions.suggest(session, user, data.room_id, data.start_time, data.end_time)
+                exc.extra["suggestions"] = jsonable_encoder(found)
+        raise
     return to_read(session, reservation)
 
 

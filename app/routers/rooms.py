@@ -7,8 +7,8 @@ from app.core import clock
 from app.core.config import settings
 from app.core.deps import AdminUser, CurrentUser, SessionDep
 from app.models import Room, RoomType
-from app.schemas import RoomAvailability, RoomCreate, RoomRead, RoomUpdate, SlotRead
-from app.services import holidays, scheduling
+from app.schemas import OccupancyCell, RoomAvailability, RoomCreate, RoomRead, RoomUpdate, SlotRead
+from app.services import holidays, scheduling, suggestions
 from app.services import reservation_service as rs
 
 router = APIRouter(prefix="/rooms", tags=["Odalar"])
@@ -126,6 +126,22 @@ def room_availability(room_id: int, day: date, session: SessionDep, _: CurrentUs
         )
         start = end
     return slots
+
+
+@router.get("/{room_id}/quiet-hours", response_model=list[OccupancyCell])
+def room_quiet_hours(
+    room_id: int,
+    session: SessionDep,
+    _: CurrentUser,
+    weekday: int | None = Query(None, ge=0, le=6, description="0 = Pazartesi; boşsa tüm günler"),
+    limit: int = Query(5, ge=1, le=24),
+):
+    """Odanın geçmiş doluluğa göre en sakin saatleri (en sakinden başlayarak).
+
+    Son `SUGGEST_HISTORY_DAYS` gün (bugün hariç) kullanılır.
+    """
+    room = _get_room(session, room_id)
+    return suggestions.quiet_hours(session, room, clock.now(), weekday, limit)
 
 
 @router.post("", response_model=RoomRead, status_code=status.HTTP_201_CREATED)

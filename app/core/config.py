@@ -44,6 +44,15 @@ class Settings(BaseSettings):
     PENALTY_BAN_THRESHOLD: int = 6
     BAN_DAYS: int = 7
 
+    # --- Akıllı slot önerisi (app/services/suggestions.py) ---
+    # Skor = ağırlıklı ortalama; ağırlıkların toplamı 1 olmak zorunda değil, normalize edilir.
+    SUGGEST_WEIGHT_PROXIMITY: float = 0.5  # istenen saate yakınlık
+    SUGGEST_WEIGHT_FIT: float = 0.3        # oda tipi ve kapasite uyumu
+    SUGGEST_WEIGHT_QUIET: float = 0.2      # geçmişte o saat ne kadar sakin
+    SUGGEST_HORIZON_HOURS: float = 6       # bu kadar saat uzaklıktaki slotun yakınlık puanı 0 olur
+    SUGGEST_HISTORY_DAYS: int = 28         # doluluk geçmişi için geriye bakılan gün sayısı
+    SUGGEST_LIMIT: int = 5                 # varsayılan öneri sayısı
+
     # --- Arka plan görevleri ---
     SCHEDULER_ENABLED: bool = True
     SCHEDULER_INTERVAL_SECONDS: int = 60
