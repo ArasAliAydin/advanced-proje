@@ -1,9 +1,11 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager, suppress
+from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 from app.core.config import INSECURE_SECRET_KEYS, settings
@@ -16,6 +18,7 @@ from app.services.reservation_service import BookingError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("studyspot")
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 def ensure_admin() -> None:
@@ -71,10 +74,14 @@ for module in (auth, rooms, reservations, waitlist, suggestions, analytics, admi
 app.include_router(reservations.checkin_router, prefix=settings.API_PREFIX)
 
 
+# Web arayüzü: derleme adımı olmayan HTML/CSS/vanilla JS, aynı /api/v1 endpoint'lerini kullanır
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
 @app.get("/", include_in_schema=False)
-def root() -> RedirectResponse:
-    """Ana adres (Docker Desktop'taki port linki dahil) doğrudan Swagger arayüzünü açar."""
-    return RedirectResponse("/docs")
+def root() -> FileResponse:
+    """Ana adres web arayüzünü açar; Swagger /docs adresinde."""
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health", tags=["Genel"])

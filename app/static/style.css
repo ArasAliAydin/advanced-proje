@@ -1,0 +1,258 @@
+/* StudySpot web arayüzü: derleme adımı yok, tek CSS dosyası. Açık/koyu tema renk değişkenleriyle. */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --text: #1c2330;
+  --muted: #5d6778;
+  --border: #d9dee6;
+  --accent: #2f6fdb;
+  --accent-text: #ffffff;
+  --ok: #1d7a46;
+  --ok-bg: #e3f4ea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf1d8;
+  --danger: #b42318;
+  --danger-bg: #fde7e5;
+  --mine: #6b3fc4;
+  --mine-bg: #efe8fb;
+  --heat: #d9480f;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 2px 8px rgba(16, 24, 40, .06);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151b;
+    --surface: #1b2029;
+    --surface-2: #242a35;
+    --text: #e6e9ef;
+    --muted: #9aa4b5;
+    --border: #333b48;
+    --accent: #5b8ff0;
+    --accent-text: #0b1220;
+    --ok: #6fd39b;
+    --ok-bg: #173325;
+    --warn: #f2c15c;
+    --warn-bg: #3a2f14;
+    --danger: #ff8a80;
+    --danger-bg: #3d1c1a;
+    --mine: #b99af5;
+    --mine-bg: #2c2340;
+    --heat: #ff7a3d;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+a { color: var(--accent); }
+h1, h2, h3 { line-height: 1.25; margin: 0 0 .5rem; }
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: 1rem; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+[hidden] { display: none !important; }
+
+/* --- Üst çubuk --- */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.25rem;
+  padding: .6rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: .5rem; font-weight: 700; color: var(--text); text-decoration: none; }
+.logo {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px;
+  background: var(--accent); color: var(--accent-text); font-weight: 800;
+}
+.nav { display: flex; gap: .25rem; flex: 1; overflow-x: auto; }
+.nav a {
+  padding: .4rem .7rem; border-radius: 8px; color: var(--muted); text-decoration: none; white-space: nowrap;
+}
+.nav a.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.userbox { display: flex; align-items: center; gap: .5rem; margin-left: auto; color: var(--muted); }
+
+.container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 2rem; flex: 1; outline: none; }
+.footer {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem;
+  padding: 1rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--border);
+}
+
+/* --- Kartlar, düğmeler, formlar --- */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1rem; box-shadow: var(--shadow);
+}
+.stack > * + * { margin-top: 1rem; }
+.row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.spread { justify-content: space-between; }
+.grid { display: grid; gap: .75rem; }
+.grid.rooms { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.grid.stats { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
+  min-height: 38px; padding: .45rem .9rem; border-radius: 8px; border: 1px solid transparent;
+  background: var(--accent); color: var(--accent-text); font: inherit; font-weight: 600; cursor: pointer;
+  text-decoration: none;
+}
+.btn:hover { filter: brightness(1.06); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+.btn.danger { background: var(--danger-bg); color: var(--danger); border-color: transparent; }
+.btn.small { min-height: 30px; padding: .2rem .6rem; font-size: .85rem; }
+.btn:focus-visible, .slot:focus-visible, .room-card:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+label { display: block; font-weight: 600; font-size: .9rem; margin-bottom: .25rem; }
+input, select {
+  width: 100%; min-height: 40px; padding: .45rem .6rem; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit;
+}
+.field + .field { margin-top: .75rem; }
+.auth-wrap { max-width: 420px; margin: 1.5rem auto; }
+.tabs { display: flex; gap: .25rem; margin-bottom: 1rem; background: var(--surface-2); padding: .25rem; border-radius: 9px; }
+.tabs button {
+  flex: 1; min-height: 36px; border: 0; border-radius: 7px; background: transparent; color: var(--muted);
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.hint { background: var(--surface-2); border-radius: 8px; padding: .6rem .75rem; font-size: .85rem; color: var(--muted); }
+
+/* --- Rozetler --- */
+.badge {
+  display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .78rem; font-weight: 600;
+  background: var(--surface-2); color: var(--muted); white-space: nowrap;
+}
+.badge.ok { background: var(--ok-bg); color: var(--ok); }
+.badge.warn { background: var(--warn-bg); color: var(--warn); }
+.badge.danger { background: var(--danger-bg); color: var(--danger); }
+.badge.mine { background: var(--mine-bg); color: var(--mine); }
+
+/* --- Odalar --- */
+.room-card { cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
+.room-card[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.room-card .meta { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
+
+.days { display: flex; gap: .35rem; overflow-x: auto; padding-bottom: .25rem; }
+.day-btn {
+  flex: 0 0 auto; min-width: 64px; padding: .35rem .5rem; border-radius: 8px; text-align: center;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; cursor: pointer;
+}
+.day-btn b { display: block; font-size: 1rem; }
+.day-btn span { font-size: .75rem; color: var(--muted); }
+.day-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.day-btn[aria-pressed="true"] span { color: inherit; }
+
+.slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: .5rem; }
+.slot {
+  display: flex; flex-direction: column; align-items: flex-start; gap: .1rem;
+  padding: .55rem .65rem; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.slot .time { font-weight: 700; }
+.slot .state { font-size: .8rem; }
+.slot.free { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+.slot.free .state { color: var(--ok); }
+.slot.full { background: var(--danger-bg); border-color: transparent; }
+.slot.full .state { color: var(--danger); }
+.slot.mine { background: var(--mine-bg); border-color: transparent; }
+.slot.mine .state { color: var(--mine); }
+.slot.off { background: var(--surface-2); color: var(--muted); cursor: default; border-color: transparent; }
+.legend { display: flex; flex-wrap: wrap; gap: .75rem; font-size: .8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: .3rem; vertical-align: -1px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+
+/* --- Öneriler --- */
+.suggestion { display: grid; grid-template-columns: 1fr auto; gap: .5rem .75rem; align-items: center; }
+.suggestion + .suggestion { border-top: 1px solid var(--border); padding-top: .75rem; margin-top: .75rem; }
+.suggestion ul { margin: .25rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: .85rem; }
+.scorebar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin-top: .35rem; max-width: 220px; }
+.scorebar > span { display: block; height: 100%; background: var(--ok); }
+
+/* --- Listeler, tablolar --- */
+.list-item { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; align-items: center; }
+.list-item + .list-item { border-top: 1px solid var(--border); padding-top: .75rem; margin-top: .75rem; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; font-size: .8rem; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.wrap { white-space: normal; min-width: 240px; }
+
+.stat .value { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .label { color: var(--muted); font-size: .85rem; }
+
+/* --- Isı haritası --- */
+.heatmap { width: auto; border-collapse: separate; border-spacing: 2px; font-size: .75rem; }
+.heatmap th, .heatmap td { border: 0; padding: 0; text-align: center; }
+.heatmap th { padding: 0 .2rem; }
+.heatmap th.day { text-align: right; padding-right: .4rem; }
+.heatmap td {
+  width: 34px; height: 28px; border-radius: 4px;
+  background: color-mix(in srgb, var(--heat) calc(var(--rate) * 100%), var(--surface-2));
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+.heatmap td.hot { color: #fff; }
+.heatmap td.empty { background: transparent; }
+.heat-legend { display: flex; align-items: center; gap: .4rem; font-size: .8rem; color: var(--muted); }
+.heat-legend .ramp { width: 120px; height: 10px; border-radius: 3px; background: linear-gradient(90deg, var(--surface-2), var(--heat)); }
+
+/* --- Modal --- */
+dialog {
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto;
+  border: 1px solid var(--border); border-radius: 12px; padding: 1rem;
+  background: var(--surface); color: var(--text);
+}
+dialog::backdrop { background: rgba(10, 14, 22, .5); }
+.modal-close-row { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; margin-bottom: .5rem; }
+.qr { display: block; width: 240px; max-width: 100%; margin: .5rem auto; image-rendering: pixelated; background: #fff; border-radius: 8px; }
+code.code { word-break: break-all; font-size: .8rem; background: var(--surface-2); padding: .15rem .35rem; border-radius: 5px; }
+
+/* --- Hata / bildirim --- */
+.alert { border-radius: 8px; padding: .6rem .75rem; font-size: .9rem; }
+.alert.error { background: var(--danger-bg); color: var(--danger); }
+.alert.info { background: var(--surface-2); color: var(--text); }
+.alert.ok { background: var(--ok-bg); color: var(--ok); }
+.alert b { display: block; }
+.toasts { position: fixed; right: 16px; bottom: 16px; left: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; z-index: 50; pointer-events: none; }
+.toast {
+  max-width: 420px; padding: .65rem .85rem; border-radius: 9px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+  background: var(--text); color: var(--bg); font-size: .9rem; pointer-events: auto;
+}
+.toast.error { background: var(--danger); color: #fff; }
+
+@media (max-width: 640px) {
+  body { font-size: 14px; }
+  .container { padding: 1rem 16px 1.5rem; }
+  .topbar { padding: .5rem 16px; }
+  .nav { order: 3; flex-basis: 100%; }
+  .slots { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: .4rem; }
+  .slot { padding: .45rem .5rem; }
+  .slot .time { white-space: nowrap; font-size: .88rem; }
+  /* Telefonda oda kartları yatay kaydırılan bir şerit: slot tablosu ekranın altına itilmesin */
+  .grid.rooms {
+    grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(190px, 70%);
+    overflow-x: auto; padding-bottom: .35rem; scroll-snap-type: x proximity;
+  }
+  .grid.rooms > * { scroll-snap-align: start; }
+  #room-detail { scroll-margin-top: 110px; }
+  .suggestion { grid-template-columns: 1fr; }
+  .heatmap td { width: 26px; height: 24px; font-size: .65rem; }
+}
