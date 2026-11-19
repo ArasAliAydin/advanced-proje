@@ -1,0 +1,3 @@
+# Satır sonları her işletim sisteminde LF kalsın (Docker/Linux ile uyumlu, gereksiz diff olmasın)
+* text=auto eol=lf
+*.png binary
