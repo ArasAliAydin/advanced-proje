@@ -1,11 +1,13 @@
-# v2 (geliştirme sürümü): demo sürümü 8000'de çalışırken çakışmasın diye 8001 kullanılır.
-name: studyspot-v2
+# Proje adı ve port ortama göre .env ile değişir; dosya her dalda aynı kalır (birleştirmede çakışmaz).
+# Varsayılan: sunum demosu -> studyspot-v1, port 8000.
+# Geliştirme kopyası (v2) .env içine şunları yazar:  COMPOSE_PROJECT_NAME=studyspot-v2  STUDYSPOT_PORT=8001
+name: ${COMPOSE_PROJECT_NAME:-studyspot-v1}
 
 services:
   api:
     build: .
     ports:
-      - "8001:8000"
+      - "${STUDYSPOT_PORT:-8000}:8000"
     env_file:
       - path: .env
         required: false

@@ -4,9 +4,8 @@ Haliç Üniversitesi · CEN 3001 Advanced Computer Programming · Grup Projesi
 
 Kütüphane odaları, laboratuvarlar ve çalışma salonları için saat bazlı rezervasyon platformu: REST API ve aynı API'yi kullanan web arayüzü.
 
-> **v2 — geliştirme sürümü** (`v2` dalı). Sunum demosu `main` dalında sabit kalır; yeni özellikler burada geliştirilir.
-> Docker'da **8001** portunda çalışır: <http://localhost:8001>, böylece demo sürümüyle (8000) aynı anda açık kalabilir.
-> v2'de yeni: **web arayüzü** ve **akıllı slot önerisi**.
+> **v2:** **web arayüzü** ve **akıllı slot önerisi** eklendi. Geliştirme `v2` dalında yapılır; sunum demosu `main` dalında sabit kalır.
+> Demo ve geliştirme kopyası aynı makinede 8000 ve 8001 portlarında birlikte çalışabilir (bkz. [Docker](#docker)).
 
 | Ortak altyapı gereksinimi | Bu projede |
 |---|---|
@@ -59,7 +58,16 @@ Web arayüzü: <http://127.0.0.1:8000/> · Swagger arayüzü: <http://127.0.0.1:
 docker compose up --build
 ```
 
-Web arayüzü <http://localhost:8001>, Swagger <http://localhost:8001/docs> adresinde açılır. Veritabanı `studyspot-v2_studyspot-data` volume'ünde kalıcıdır. Demo verisi için: `docker compose exec api python -m scripts.seed` (sıfırdan: `--reset`)
+Web arayüzü <http://localhost:8000>, Swagger <http://localhost:8000/docs> adresinde açılır; Docker Desktop'ta `studyspot-v1` adıyla görünür. Veritabanı `studyspot-v1_studyspot-data` volume'ünde kalıcıdır. Demo verisi için: `docker compose exec api python -m scripts.seed` (sıfırdan: `--reset`)
+
+**Aynı makinede iki kopya (demo + geliştirme).** Proje adı ve port `docker-compose.yml` içinde değişkendir, böylece dosya her dalda aynı kalır. Geliştirme kopyasının klasöründe `.env` dosyasına şunları eklemek yeterli:
+
+```
+COMPOSE_PROJECT_NAME=studyspot-v2
+STUDYSPOT_PORT=8001
+```
+
+Bu kopya <http://localhost:8001> adresinde, `studyspot-v2` adıyla ve kendi volume'üyle (`studyspot-v2_studyspot-data`) çalışır; 8000'deki demo etkilenmez.
 
 ### Testler
 
@@ -184,7 +192,7 @@ Bunlara ek olarak `/` web arayüzünü, `/docs` Swagger'ı, `/health` sağlık k
 
 ## Sunum için demo senaryosu
 
-`python -m scripts.seed --reset` sonrası web arayüzünden (<http://localhost:8001>). Öğrenci hesapları `ogrenci1..6@example.com` (şifre `scripts/seed.py` içinde), admin bilgileri `.env.example` içinde. İki öğrenciyi aynı anda göstermek için ikinci bir tarayıcı penceresi (gizli pencere) kullanılabilir.
+`python -m scripts.seed --reset` sonrası web arayüzünden (<http://localhost:8000>; geliştirme kopyasında 8001). Öğrenci hesapları `ogrenci1..6@example.com` (şifre `scripts/seed.py` içinde), admin bilgileri `.env.example` içinde. İki öğrenciyi aynı anda göstermek için ikinci bir tarayıcı penceresi (gizli pencere) kullanılabilir.
 
 1. **Admin** ile giriş → **Yönetim**: özet rapor, gün × saat **ısı haritası** (3 haftalık geçmiş veri; öğlen saatleri koyu), oda istatistikleri.
 2. **ogrenci1** ile giriş → **Odalar** → *Grup Odası 1* → yarın → boş 10:00 slotuna tıkla → süre 2 saat → **Rezerve et** → **QR kodunu göster** / **Takvime ekle (.ics)**. Slot tablosunda mor "Rezervasyonunuz" olarak görünür; altta günün **en sakin saatleri** listelenir.
