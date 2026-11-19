@@ -1,4 +1,4 @@
-"""Demo verisi üretir: odalar, öğrenciler, son 3 haftanın rezervasyon geçmişi ve birkaç yaklaşan rezervasyon.
+"""Demo verisi üretir: odalar, öğrenciler, önceki 3 haftanın rezervasyon geçmişi ve birkaç yaklaşan rezervasyon.
 
 Kullanım:  python -m scripts.seed          (veritabanı boşsa doldurur)
            python -m scripts.seed --reset  (tüm tabloları silip yeniden oluşturur)
@@ -45,10 +45,13 @@ def seed() -> None:
         session.add_all(rooms + students)
         session.commit()
 
-        # Geçmiş: analitik endpoint'lerinin anlamlı veri döndürmesi için (öğlen saatleri daha yoğun)
+        # Geçmiş: analitik endpoint'lerinin anlamlı veri döndürmesi için (öğlen saatleri daha yoğun).
+        # Yalnızca önceki 3 tam haftaya yazılır: bu haftaya yazılsaydı öğrenciler haftalık limite
+        # takılır ve demoda yeni rezervasyon yapamazdı.
         past = 0
-        for days_ago in range(21, 0, -1):
-            day = (now - timedelta(days=days_ago)).date()
+        this_monday = now.date() - timedelta(days=now.weekday())
+        for days_before in range(21, 0, -1):
+            day = this_monday - timedelta(days=days_before)
             weekend = day.weekday() >= 5
             for room in rooms:
                 seats = rs.seats_limit(room)
