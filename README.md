@@ -52,7 +52,7 @@ Swagger arayüzü: <http://127.0.0.1:8000/docs>
 docker compose up --build
 ```
 
-Veritabanı `studyspot-data` volume'ünde kalıcıdır. Demo verisi için: `docker compose exec api python -m scripts.seed`
+Uygulama <http://localhost:8000> adresinde açılır; Docker Desktop'ta `studyspot-v1` adıyla görünür. Veritabanı `studyspot-v1_studyspot-data` volume'ünde kalıcıdır. Demo verisi için: `docker compose exec api python -m scripts.seed`
 
 ### Testler
 

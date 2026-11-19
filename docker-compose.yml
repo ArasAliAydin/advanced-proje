@@ -1,3 +1,6 @@
+# v1 (sunum demosu). Geliştirme sürümü studyspot-v2 adıyla 8001 portunda çalışır.
+name: studyspot-v1
+
 services:
   api:
     build: .
