@@ -1,8 +1,11 @@
+# v2 (geliştirme sürümü): demo sürümü 8000'de çalışırken çakışmasın diye 8001 kullanılır.
+name: studyspot-v2
+
 services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "8001:8000"
     env_file:
       - path: .env
         required: false

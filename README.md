@@ -4,6 +4,9 @@ Haliç Üniversitesi · CEN 3001 Advanced Computer Programming · Grup Projesi
 
 Kütüphane odaları, laboratuvarlar ve çalışma salonları için saat bazlı rezervasyon platformu (REST API).
 
+> **v2 — geliştirme sürümü** (`v2` dalı). Sunum demosu `main` dalında sabit kalır; yeni özellikler burada geliştirilir.
+> Docker'da **8001** portunda çalışır: <http://localhost:8001>, böylece demo sürümüyle (8000) aynı anda açık kalabilir.
+
 | Ortak altyapı gereksinimi | Bu projede |
 |---|---|
 | FastAPI + SQLModel + SQLite, Python 3.12 | `app/` — 39 endpoint, 7 tablo |
@@ -52,7 +55,7 @@ Swagger arayüzü: <http://127.0.0.1:8000/docs>
 docker compose up --build
 ```
 
-Veritabanı `studyspot-data` volume'ünde kalıcıdır. Demo verisi için: `docker compose exec api python -m scripts.seed`
+Uygulama <http://localhost:8001> adresinde açılır. Veritabanı `studyspot-v2_studyspot-data` volume'ünde kalıcıdır. Demo verisi için: `docker compose exec api python -m scripts.seed`
 
 ### Testler
 
