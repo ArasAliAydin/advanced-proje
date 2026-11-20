@@ -1,4 +1,4 @@
-/* StudySpot web arayüzü: derleme adımı yok, tek CSS dosyası. Açık/koyu tema renk değişkenleriyle. */
+/* StudySpot web arayüzü: derleme adımı yok, tek CSS dosyası. Gündüz/gece teması renk değişkenleriyle. */
 :root {
   --bg: #f5f6f8;
   --surface: #ffffff;
@@ -22,8 +22,9 @@
   color-scheme: light;
 }
 
+/* Gece modu: sistem ayarı koyuysa otomatik; üst çubuktaki düğme seçimi data-theme ile sabitler */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #12151b;
     --surface: #1b2029;
     --surface-2: #242a35;
@@ -44,6 +45,27 @@
     --shadow: none;
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b;
+  --surface: #1b2029;
+  --surface-2: #242a35;
+  --text: #e6e9ef;
+  --muted: #9aa4b5;
+  --border: #333b48;
+  --accent: #5b8ff0;
+  --accent-text: #0b1220;
+  --ok: #6fd39b;
+  --ok-bg: #173325;
+  --warn: #f2c15c;
+  --warn-bg: #3a2f14;
+  --danger: #ff8a80;
+  --danger-bg: #3d1c1a;
+  --mine: #b99af5;
+  --mine-bg: #2c2340;
+  --heat: #ff7a3d;
+  --shadow: none;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -84,7 +106,9 @@ h3 { font-size: 1rem; }
   padding: .4rem .7rem; border-radius: 8px; color: var(--muted); text-decoration: none; white-space: nowrap;
 }
 .nav a.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
-.userbox { display: flex; align-items: center; gap: .5rem; margin-left: auto; color: var(--muted); }
+.tools { display: flex; align-items: center; gap: .4rem; margin-left: auto; }
+.userbox { display: flex; align-items: center; gap: .5rem; color: var(--muted); }
+.icon-btn { min-width: 34px; padding: .2rem .45rem; font-size: .9rem; }
 
 .container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 2rem; flex: 1; outline: none; }
 .footer {
@@ -115,7 +139,8 @@ h3 { font-size: 1rem; }
 .btn.ghost { background: transparent; color: var(--text); border-color: var(--border); }
 .btn.danger { background: var(--danger-bg); color: var(--danger); border-color: transparent; }
 .btn.small { min-height: 30px; padding: .2rem .6rem; font-size: .85rem; }
-.btn:focus-visible, .slot:focus-visible, .room-card:focus-visible, input:focus-visible, select:focus-visible {
+.btn:focus-visible, .slot:focus-visible, .room-card:focus-visible, .seat:focus-visible, .subnav a:focus-visible,
+input:focus-visible, select:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 
@@ -237,6 +262,50 @@ code.code { word-break: break-all; font-size: .8rem; background: var(--surface-2
   background: var(--text); color: var(--bg); font-size: .9rem; pointer-events: auto;
 }
 .toast.error { background: var(--danger); color: #fff; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* --- Koltuk haritası (koltuk bazlı odalar) --- */
+.seat-picker { border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem; }
+.seat-front {
+  text-align: center; font-size: .75rem; color: var(--muted); letter-spacing: .04em; text-transform: uppercase;
+  border-bottom: 3px solid var(--border); padding-bottom: .25rem;
+}
+.seat-grid {
+  display: grid; grid-template-columns: repeat(var(--cols, 6), minmax(0, 44px)); gap: .4rem;
+  justify-content: center; overflow-x: auto; padding: .25rem 0;
+}
+.seat {
+  height: 40px; min-width: 0; border-radius: 8px 8px 12px 12px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font: inherit; font-size: .8rem; font-weight: 600;
+  cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.seat.free { border-color: color-mix(in srgb, var(--ok) 55%, var(--border)); background: var(--ok-bg); color: var(--ok); }
+.seat.taken { background: var(--surface-2); color: var(--muted); cursor: not-allowed; border-color: transparent; text-decoration: line-through; }
+.seat.mine { background: var(--mine-bg); color: var(--mine); border-color: transparent; cursor: default; }
+.seat[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.seat-key { border: 1px solid var(--border); }
+.seat-key.free { background: var(--ok-bg); border-color: var(--ok); }
+.seat-key.taken { background: var(--surface-2); }
+.seat-key.mine { background: var(--mine-bg); }
+.seat-key.sel { background: var(--accent); border-color: var(--accent); }
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+/* --- Yönetim --- */
+.subnav {
+  display: flex; gap: .25rem; overflow-x: auto; background: var(--surface-2); padding: .25rem; border-radius: 9px;
+  scrollbar-width: thin;
+}
+.subnav a {
+  flex: 0 0 auto; padding: .45rem .8rem; border-radius: 7px; color: var(--muted); text-decoration: none; font-weight: 600; white-space: nowrap;
+}
+.subnav a[aria-current="page"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.rtable td .row { flex-wrap: nowrap; }
+.rtable td { vertical-align: top; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; }
+.form-grid > .field + .field { margin-top: 0; }
+.field-error { color: var(--danger); font-size: .85rem; margin-top: .25rem; }
+.field-error:empty { display: none; }
+[aria-invalid="true"] { border-color: var(--danger); }
 
 @media (max-width: 640px) {
   body { font-size: 14px; }
@@ -255,4 +324,19 @@ code.code { word-break: break-all; font-size: .8rem; background: var(--surface-2
   #room-detail { scroll-margin-top: 110px; }
   .suggestion { grid-template-columns: 1fr; }
   .heatmap td { width: 26px; height: 24px; font-size: .65rem; }
+  .tools { gap: .3rem; }
+  #user-name { max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seat-grid { gap: .3rem; grid-template-columns: repeat(var(--cols, 6), minmax(0, 40px)); }
+  .seat { height: 36px; font-size: .75rem; }
+  /* Yönetim tabloları telefonda kartlara dönüşür: her hücre "etiket: değer" satırı */
+  .rtable thead { display: none; }
+  .rtable, .rtable tbody, .rtable tr, .rtable td { display: block; width: 100%; }
+  .rtable tr { border: 1px solid var(--border); border-radius: 9px; padding: .5rem .65rem; margin-bottom: .6rem; }
+  .rtable td {
+    display: grid; grid-template-columns: minmax(90px, 34%) 1fr; gap: .5rem; align-items: start;
+    border: 0; padding: .25rem 0; white-space: normal; text-align: left;
+  }
+  .rtable td.num { text-align: left; }
+  .rtable td .row { flex-wrap: wrap; }
+  .rtable td::before { content: attr(data-label); color: var(--muted); font-size: .78rem; font-weight: 600; }
 }
