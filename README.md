@@ -7,26 +7,29 @@ Kütüphane odaları, laboratuvarlar ve çalışma salonları için saat bazlı 
 > **v2:** **web arayüzü** ve **akıllı slot önerisi** eklendi. Geliştirme `v2` dalında yapılır; sunum demosu `main` dalında sabit kalır.
 > Demo ve geliştirme kopyası aynı makinede 8000 ve 8001 portlarında birlikte çalışabilir (bkz. [Docker](#docker)).
 
+> **v3:** web arayüzüne **Yönetim ekranları** (oda ekle/düzenle/kapat, kullanıcı rol/durum/ceza, filtreli tüm rezervasyonlar ve admin iptali, tüm bekleme listesi, CSV indirme, resmi tatiller), koltuk bazlı salonlar için **koltuk haritası**, **Türkçe / İngilizce** dil seçimi ve **gece / gündüz modu** eklendi. Geliştirme `v3` dalında, Docker'da `studyspot-v3` adıyla 8002 portunda (bkz. [v3'te yenilikler](#v3te-yenilikler)).
+
 | Ortak altyapı gereksinimi | Bu projede |
 |---|---|
-| FastAPI + SQLModel + SQLite, Python 3.12 | `app/` — 41 endpoint, 7 tablo |
+| FastAPI + SQLModel + SQLite, Python 3.12 | `app/` — 42 endpoint, 7 tablo |
 | JWT auth + rol bazlı yetkilendirme | `student` / `admin` rolleri, OAuth2 password flow |
-| Pytest | `tests/` — 76 test |
+| Pytest | `tests/` — 87 test |
 | Docker | `Dockerfile`, `docker-compose.yml` |
 | **Gerçek bir algoritma** | Sweep-line ile çakışma/kapasite tespiti, FIFO bekleme listesi ve otomatik atama, çok kriterli skorla akıllı slot önerisi |
-| Web arayüzü | `app/static/` — HTML/CSS/vanilla JS, derleme adımı yok, FastAPI'den sunulur |
+| Web arayüzü | `app/static/` — HTML/CSS/vanilla JS, derleme adımı yok, FastAPI'den sunulur; TR/EN, gece/gündüz modu |
 | **Harici API** | Resmi tatiller ([date.nager.at](https://date.nager.at)), DB'de önbellekli, fail-open |
 | **Arka plan görevi** | Dakikada bir: no-show iptali + ceza, hatırlatma e-postası, tamamlama, sıra temizliği |
 
 ## Özellikler
 
-- **Odalar:** iki rezervasyon modu — `exclusive` (oda tek rezervasyona kapanır) ve `shared` (koltuk bazlı, aynı anda `capacity` kadar kişi). Açılış/kapanış saati ve slot uzunluğu oda bazında. Oda kapatılınca (pasife alınınca) henüz başlamamış rezervasyonları cezasız iptal edilir ve sahiplerine e-posta gider.
+- **Odalar:** iki rezervasyon modu — `exclusive` (oda tek rezervasyona kapanır) ve `shared` (koltuk bazlı, aynı anda `capacity` kadar kişi; her rezervasyon bir koltuğa oturur). Açılış/kapanış saati ve slot uzunluğu oda bazında. Oda kapatılınca (pasife alınınca) henüz başlamamış rezervasyonları cezasız iptal edilir ve sahiplerine e-posta gider.
 - **Rezervasyon:** çakışma kontrolü, slot hizalama, çalışma saatleri, tek seferde en fazla 3 saat, en fazla 14 gün ileri, resmi tatilde kapalı.
 - **Müsaitlik:** müsaitlik sorguları rezervasyon kurallarıyla tutarlıdır; tatil günleri, geçmiş ve 14 gün ötesi müsait görünmez, slotun `reason` alanı nedenini söyler (`holiday`, `in_past`, `too_far`, `slot_full`, `room_inactive`).
 - **Limitler:** öğrenci başına günlük 4, haftalık 12 saat (admin muaf).
 - **Bekleme listesi:** dolu slot için sıraya girilir; iptal veya no-show olunca sıradaki *uygun* kişiye rezervasyon otomatik açılır ve e-posta gider.
 - **Akıllı slot önerisi:** istenen slot doluysa aynı odada aynı gün en yakın boş aralıklar (aynı süre) ve aynı saatte uygun diğer odalar önerilir. Her öneri gerçek rezervasyon kurallarından geçmiştir (saat, limit, çakışma, kalan koltuk); skor zaman yakınlığı + oda tipi/kapasite uyumu + geçmiş doluluğa (sakinlik) göredir. `409 slot_full` yanıtı önerileri `suggestions` alanında taşır. Odanın en sakin saatleri ayrıca sorgulanabilir.
-- **Web arayüzü:** giriş/kayıt, oda ve gün seçerek slot tablosu, boş slota tıklayıp rezervasyon, dolu slotta öneriler (tek tıkla rezervasyon) ve bekleme listesi; Rezervasyonlarım (iptal, QR, `.ics`, sıra numaraları); admin için özet rapor, gün × saat ısı haritası, oda istatistikleri, e-posta günlüğü ve "görevleri şimdi çalıştır". İş kuralı hataları kodlarına göre başlık ve ipucuyla gösterilir; telefon genişliğinde de kullanılır.
+- **Web arayüzü:** giriş/kayıt, oda ve gün seçerek slot tablosu, boş slota tıklayıp rezervasyon, dolu slotta öneriler (tek tıkla rezervasyon) ve bekleme listesi; Rezervasyonlarım (iptal, QR, `.ics`, sıra numaraları); admin için özet rapor, gün × saat ısı haritası, oda istatistikleri, e-posta günlüğü ve "görevleri şimdi çalıştır". İş kuralı hataları kodlarına göre başlık ve ipucuyla gösterilir; telefon genişliğinde de kullanılır. v3'te Yönetim ekranları, koltuk haritası, TR/EN ve gece/gündüz modu eklendi (bkz. [v3'te yenilikler](#v3te-yenilikler)).
+- **Koltuk haritası (v3):** koltuk bazlı salonlarda öğrenci rezervasyon penceresinde koltuğunu haritadan seçer (`seat_number`); seçmezse aralığın tamamında boş olan ilk koltuk atanır. Harita sıra düzeni odanın `seats_per_row` alanından gelir. Bir rezervasyon süresi boyunca tek koltukta kalır: 10–11'de 1 numara, 11–12'de 2 numara doluysa 10–12 için kesintisiz boş koltuk yoktur ve slot dolu sayılır. Bekleme listesinden atananlara da boş koltuk verilir. Exclusive odalarda koltuk seçilmez.
 - **QR check-in:** her rezervasyonun QR kodu (PNG) vardır. Başlangıçtan 10 dk önce açılır, 15 dk sonra kapanır (slotun bitişini aşamaz).
 - **Ceza sistemi:** no-show 2 puan, geç iptal (son 30 dk) 1 puan; 6 puanda 7 gün rezervasyon yasağı. Başlangıca 30 dk veya daha az kala (ya da slot başladıktan sonra) bekleme listesinden atanan rezervasyon ceza doğurmaz: kişinin cezasız iptal etme fırsatı hiç olmamıştır.
 - **Analitik:** gün × saat doluluk ısı haritası, saatlik/günlük yoğunluk, oda istatistikleri, özet rapor, CSV dışa aktarma.
@@ -67,7 +70,7 @@ COMPOSE_PROJECT_NAME=studyspot-v2
 STUDYSPOT_PORT=8001
 ```
 
-Bu kopya <http://localhost:8001> adresinde, `studyspot-v2` adıyla ve kendi volume'üyle (`studyspot-v2_studyspot-data`) çalışır; 8000'deki demo etkilenmez.
+Bu kopya <http://localhost:8001> adresinde, `studyspot-v2` adıyla ve kendi volume'üyle (`studyspot-v2_studyspot-data`) çalışır; 8000'deki demo etkilenmez. v3 kopyası aynı şekilde `COMPOSE_PROJECT_NAME=studyspot-v3`, `STUDYSPOT_PORT=8002` ile <http://localhost:8002> adresinde çalışır.
 
 ### Testler
 
@@ -76,6 +79,13 @@ pytest
 ```
 
 Testler bellek içi SQLite kullanır, zamanı sabitler (`clock.freeze`) ve harici API'yi taklit eder; internet gerektirmez.
+
+Python 3.12 Docker imajında (`tests/` imaja kopyalanmaz, volume ile bağlanır; Windows PowerShell örneği):
+
+```powershell
+docker compose build
+docker run --rm -u root -v "${PWD}/tests:/app/tests:ro" -v "${PWD}/pytest.ini:/app/pytest.ini:ro" studyspot-v3-api sh -c "pip install -q pytest==9.2.0 && python -m pytest -q -p no:cacheprovider"
+```
 
 ## Mimari
 
@@ -132,8 +142,8 @@ app/
 | Tablo | Önemli alanlar |
 |---|---|
 | `user` | email (unique), hashed_password, role, is_active, penalty_points, banned_until |
-| `room` | name (unique), room_type, booking_mode, capacity, open_time, close_time, slot_minutes, is_active |
-| `reservation` | user_id → user, room_id → room, start_time, end_time, status, source, checkin_code (unique), checked_in_at, reminder_sent |
+| `room` | name (unique), room_type, booking_mode, capacity, open_time, close_time, slot_minutes, seats_per_row, is_active |
+| `reservation` | user_id → user, room_id → room, start_time, end_time, seat_number, status, source, checkin_code (unique), checked_in_at, reminder_sent |
 | `waitlistentry` | user_id, room_id, start_time, end_time, status, promoted_reservation_id → reservation |
 | `penaltylog` | user_id, reservation_id, points, reason |
 | `emaillog` | user_id, to_email, subject, body, kind, status |
@@ -141,6 +151,7 @@ app/
 
 Rezervasyon durumları: `confirmed → checked_in → completed`, `confirmed → cancelled`, `confirmed → no_show`.
 Zamanlar kampüs yerel saatinde (`TIMEZONE`) tz'siz saklanır; tz'li girişler otomatik çevrilir.
+v3'te eklenen `seats_per_row` ve `seat_number` kolonları, v1/v2'den kalan bir SQLite dosyasına açılışta otomatik eklenir (`core/database.py` → `add_missing_columns`); eski rezervasyonların koltuk numarası boş kalır ve herhangi bir koltuğu tutuyor sayılır.
 
 ## Endpoint listesi
 
@@ -157,9 +168,10 @@ Tümü `/api/v1` altında. 🔒 = giriş gerekli, 👑 = yalnızca admin.
 | GET | `/rooms/{id}` 🔒 | Oda detayı |
 | GET | `/rooms/{id}/availability?day=` 🔒 | Günün slotları, kalan yer, müsait değilse nedeni |
 | GET | `/rooms/{id}/quiet-hours?weekday=&limit=` 🔒 | Geçmiş doluluğa göre odanın en sakin saatleri |
+| GET | `/rooms/{id}/seats?start_time=&end_time=` 🔒 | Koltuk haritası: aralıkta boş / dolu / benim koltuklarım (yalnızca `shared`) |
 | GET | `/suggestions?room_id=&start_time=&end_time=&limit=` 🔒 | Dolu slot yerine kurallara uyan alternatifler (skorlu) |
 | POST / PATCH / DELETE | `/rooms`, `/rooms/{id}` 👑 | Oda yönetimi (silme = pasife alma + yaklaşan rezervasyonların iptali) |
-| POST | `/reservations` 🔒 | Rezervasyon yap (dolu slotta 409 + `suggestions`) |
+| POST | `/reservations` 🔒 | Rezervasyon yap; `shared` odada isteğe bağlı `seat_number` (dolu slotta 409 + `suggestions`) |
 | GET | `/reservations/me` 🔒 | Rezervasyonlarım |
 | GET | `/reservations/me/calendar.ics` 🔒 | Yaklaşanlar, takvim dosyası |
 | GET | `/reservations/{id}` 🔒 | Detay (sahibi veya admin) |
@@ -188,11 +200,29 @@ Tümü `/api/v1` altında. 🔒 = giriş gerekli, 👑 = yalnızca admin.
 
 Bunlara ek olarak `/` web arayüzünü, `/docs` Swagger'ı, `/health` sağlık kontrolünü döndürür.
 
-İş kuralı hataları `{"detail": "...", "code": "slot_full"}` biçiminde döner (`slot_full` yanıtında ayrıca `suggestions` listesi bulunur). Kodlar: `slot_full`, `user_conflict`, `daily_limit`, `weekly_limit`, `outside_hours`, `slot_misaligned`, `too_long`, `in_past`, `too_far`, `holiday`, `user_banned`, `room_inactive`, `too_early`, `too_late`, `already_started` …
+İş kuralı hataları `{"detail": "...", "code": "slot_full"}` biçiminde döner (`slot_full` yanıtında ayrıca `suggestions` listesi bulunur). Kodlar: `slot_full`, `seat_taken`, `invalid_seat`, `seat_not_applicable`, `user_conflict`, `daily_limit`, `weekly_limit`, `outside_hours`, `slot_misaligned`, `too_long`, `in_past`, `too_far`, `holiday`, `user_banned`, `room_inactive`, `too_early`, `too_late`, `already_started` …
+Mesajında değer geçen hatalar bu değerleri ayrıca `params` alanında taşır (ör. `outside_hours` → `{"open": "08:00", "close": "22:00"}`); İngilizce arayüz mesajı koddan ve bu parametrelerden kendisi kurar.
+
+## v3'te yenilikler
+
+**Yönetim sekmesi** (`#/admin/<bölüm>`, `app/static/admin.js`). Sunucu tarafında yeni yönetim endpoint'i gerekmedi; ekranlar mevcut API'leri kullanır. Silme, kapatma, rol/durum değiştirme, ceza sıfırlama ve iptal gibi işlemler onay penceresi ister. Telefonda tablolar karta dönüşür.
+
+| Bölüm | Ne yapılır | Kullandığı API |
+|---|---|---|
+| Rapor | v2'deki özet, ısı haritası, oda istatistikleri, e-posta günlüğü, görevleri çalıştır | `/analytics/*`, `/admin/emails`, `/admin/jobs/run` |
+| Odalar | Açık/kapalı tüm odalar; **ekle**, **düzenle** (ad, konum, tip, mod, kapasite / koltuk sayısı, sıra başına koltuk, saatler, slot 15–240 dk), **kapat** (kaç rezervasyonun iptal edileceği önceden söylenir), **geri aç**. 409 isim çakışması ve 422 doğrulama hataları ilgili alanın altında gösterilir | `GET /rooms?include_inactive=true`, `POST /rooms`, `PATCH /rooms/{id}`, `DELETE /rooms/{id}` |
+| Kullanıcılar | Arama; rol, durum, **ceza puanı** ve **yasak bitişi**; admin/öğrenci yap, pasif/aktif yap, cezayı sıfırla, kişinin ceza kayıtları; tüm ceza kayıtları. Admin kendi rolünü/durumunu değiştiremez (arayüzde de kilitli) | `/admin/users`, `/admin/users/{id}`, `/admin/users/{id}/reset-penalty`, `/admin/penalties` |
+| Rezervasyonlar | Oda, kullanıcı, durum ve tarih aralığı filtresi; sayfalama; isteğe bağlı nedenle **admin iptali** (cezasız, kullanıcıya e-posta, slot bekleme listesine açılır); **CSV indir** (JWT ile fetch edilip dosya olarak kaydedilir) | `GET /reservations`, `DELETE /reservations/{id}?reason=`, `/admin/reports/reservations.csv` |
+| Bekleme listesi | Oda ve durum filtresi, sıra numarası, atanan rezervasyon; bekleyen kaydı sıradan çıkarma | `GET /waitlist`, `DELETE /waitlist/{id}` |
+| Tatiller | Yıl seçerek harici API'den gelen resmi tatiller | `/admin/holidays/{yıl}` |
+
+**Koltuk haritası.** Koltuk bazlı bir salonda boş slota tıklayınca rezervasyon penceresinde koltuklar sıra düzeniyle çizilir: yeşil boş, gri dolu, mor sizin. Süre değişince harita yeniden yüklenir; seçilen koltuk o sırada doluysa sunucu `409 seat_taken` döner ve harita tazelenir. Demo verisinde *Sessiz Çalışma Salonu* 24 koltuk (8'li sıralar), *Bilgisayar Lab A* 12 koltuk (4'lü sıralar).
+
+**Dil ve tema.** Üst çubuktaki **EN / TR** düğmesi arayüz dilini, **☾ / ☀** düğmesi gece/gündüz modunu değiştirir; seçim tarayıcıda hatırlanır. İlk açılışta tarayıcı dili ve sistemin koyu tema ayarı kullanılır. Metinler `app/static/i18n.js` içinde `[Türkçe, İngilizce]` çiftleri olarak durur; sunucu iş kuralı mesajlarını Türkçe döndürmeye devam eder, İngilizce arayüz bunları hata kodu ve `params` alanından çevirir.
 
 ## Sunum için demo senaryosu
 
-`python -m scripts.seed --reset` sonrası web arayüzünden (<http://localhost:8000>; geliştirme kopyasında 8001). Öğrenci hesapları `ogrenci1..6@example.com` (şifre `scripts/seed.py` içinde), admin bilgileri `.env.example` içinde. İki öğrenciyi aynı anda göstermek için ikinci bir tarayıcı penceresi (gizli pencere) kullanılabilir.
+`python -m scripts.seed --reset` sonrası web arayüzünden (<http://localhost:8000>; geliştirme kopyalarında 8001 / 8002). Öğrenci hesapları `ogrenci1..6@example.com` (şifre `scripts/seed.py` içinde), admin bilgileri `.env.example` içinde. İki öğrenciyi aynı anda göstermek için ikinci bir tarayıcı penceresi (gizli pencere) kullanılabilir.
 
 1. **Admin** ile giriş → **Yönetim**: özet rapor, gün × saat **ısı haritası** (3 haftalık geçmiş veri; öğlen saatleri koyu), oda istatistikleri.
 2. **ogrenci1** ile giriş → **Odalar** → *Grup Odası 1* → yarın → boş 10:00 slotuna tıkla → süre 2 saat → **Rezerve et** → **QR kodunu göster** / **Takvime ekle (.ics)**. Slot tablosunda mor "Rezervasyonunuz" olarak görünür; altta günün **en sakin saatleri** listelenir.
@@ -200,14 +230,17 @@ Bunlara ek olarak `/` web arayüzünü, `/docs` Swagger'ı, `/health` sağlık k
 4. ogrenci2 dolu 11:00 slotunda **Bekleme listesine katıl** → *Rezervasyonlarım*'da "1. sıra".
 5. ogrenci1 → *Rezervasyonlarım* → 10–12 rezervasyonunu **İptal et** → ogrenci2'ye 11–12 slotu **otomatik atanır** (`Bekleme listesinden` rozeti); admin **E-posta günlüğü**'nde bildirimi gösterir.
 6. No-show: 15 dakikadan önce başlamış, check-in yapılmamış bir rezervasyon varken admin **Görevleri şimdi çalıştır** → durum `no_show`, kullanıcıya +2 ceza puanı. (Sunumda beklememek için `.env` içinde `CHECKIN_GRACE_MINUTES=1` yapılabilir.)
-7. Swagger'da (`/docs`): `GET /suggestions` yanıtındaki skor bileşenleri, aynı slota `POST /reservations` → **409 `slot_full`** + `suggestions`; `GET /admin/holidays/2026` → harici API'den gelen tatiller, bir tatil gününe rezervasyon → **400 `holiday`**.
+7. **(v3) Koltuk haritası:** ogrenci3 → *Sessiz Çalışma Salonu* → yarın boş bir slot → haritadan bir koltuk seç → **Rezerve et**; Rezervasyonlarım'da ve QR penceresinde "Koltuk N" görünür. Aynı slotu başka öğrenciyle açınca o koltuk gri (dolu).
+8. **(v3) Yönetim:** admin → *Yönetim → Odalar* → **Yeni oda** (ör. koltuk bazlı 20 koltuk) → **Düzenle** → **Kapat** (onayda yaklaşan rezervasyon sayısı) → **Geri aç**. *Kullanıcılar*'da bir öğrenciyi **Pasif yap** (giriş yapamaz) ve geri al, **Cezayı sıfırla**. *Rezervasyonlar*'da oda/durum filtresi, nedenli **İptal et**, **CSV indir**. "Admin odayı nereden ekliyor?" sorusunun cevabı artık Swagger'a geçmeden arayüzde.
+9. **(v3) EN** düğmesiyle tüm arayüz İngilizceye, **☾ / ☀** ile gece/gündüz moduna geçer.
+10. Swagger'da (`/docs`): `GET /suggestions` yanıtındaki skor bileşenleri, aynı slota `POST /reservations` → **409 `slot_full`** + `suggestions`; `GET /admin/holidays/2026` → harici API'den gelen tatiller, bir tatil gününe rezervasyon → **400 `holiday`**.
 
 ## İş bölümü (4 kişi)
 
 | Kişi | Sorumluluk | Dosyalar |
 |---|---|---|
-| 1 | Auth, roller, güvenlik, kullanıcı yönetimi, web arayüzü | `core/security.py`, `core/deps.py`, `routers/auth.py`, `routers/admin.py` (kullanıcı kısmı), `static/`, `tests/test_auth_rooms.py`, `tests/test_web.py` |
-| 2 | Oda ve rezervasyon mantığı, çakışma algoritması, akıllı slot önerisi | `services/scheduling.py`, `services/reservation_service.py`, `services/suggestions.py`, `routers/rooms.py`, `routers/reservations.py`, `routers/suggestions.py`, `tests/test_reservations.py`, `tests/test_suggestions.py` |
+| 1 | Auth, roller, güvenlik, kullanıcı yönetimi, web arayüzü (v3: Yönetim ekranları, TR/EN, gece/gündüz modu) | `core/security.py`, `core/deps.py`, `routers/auth.py`, `routers/admin.py` (kullanıcı kısmı), `static/` (`app.js`, `admin.js`, `i18n.js`, `style.css`), `tests/test_auth_rooms.py`, `tests/test_web.py` |
+| 2 | Oda ve rezervasyon mantığı, çakışma algoritması, akıllı slot önerisi, koltuk haritası (v3) | `services/scheduling.py`, `services/reservation_service.py`, `services/suggestions.py`, `routers/rooms.py`, `routers/reservations.py`, `routers/suggestions.py`, `tests/test_reservations.py`, `tests/test_suggestions.py`, `tests/test_seats.py` |
 | 3 | Bekleme listesi, QR check-in, ceza, arka plan görevleri | `services/waitlist_service.py`, `services/penalties.py`, `services/jobs.py`, `routers/waitlist.py`, `tests/test_waitlist_checkin_jobs.py` |
 | 4 | Analitik, .ics / e-posta / tatil API'si, Docker, CI, README, slayt | `services/analytics.py`, `services/exports.py`, `services/notifications.py`, `services/holidays.py`, `Dockerfile`, `.github/`, `tests/test_exports_analytics.py` |
 
@@ -218,7 +251,8 @@ Bunlara ek olarak `/` web arayüzünü, `/docs` Swagger'ı, `/health` sağlık k
 ## Bilinen sınırlar
 
 - Tek süreç varsayılır (`booking_lock` ve zamanlayıcı süreç içi). Birden fazla worker ile çalıştırılacaksa PostgreSQL + satır kilidi ve ayrı bir görev çalıştırıcı gerekir.
-- Şema değişiklikleri için migration aracı (Alembic) yok; geliştirmede `python -m scripts.seed --reset` ile sıfırlanır.
+- Şema değişiklikleri için migration aracı (Alembic) yok; v3'ün iki yeni kolonu açılışta basit bir `ALTER TABLE` ile eklenir, daha karmaşık değişikliklerde `python -m scripts.seed --reset` ile sıfırlanır.
+- Sunucu iş kuralı ve e-posta metinleri Türkçedir; İngilizce yalnızca web arayüzündedir (API hata kodları ve `params` dil bağımsızdır). Ceza/iptal nedenleri ve tatil adları veritabanında Türkçe saklanır; bilinen nedenler arayüzde çevrilir.
 - Refresh token yok; access token süresi dolunca yeniden giriş yapılır.
 - Check-in fiziksel varlığı kanıtlamaz: kod rezervasyon sahibine API yanıtında da döner, yani öğrenci odaya gelmeden `POST /checkin` çağırabilir. Gerçek kullanımda QR odadaki görevli tarafından okutulmalı (endpoint'i yalnızca admin'e açmak) ya da kod odaya ait olmalıdır.
 - Pasife alınma tarihi tutulmaz; analitikte pasif bir odanın kapasitesi, rezervasyonu bulunan tarih aralığının tamamında sayılır.
