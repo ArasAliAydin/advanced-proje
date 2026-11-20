@@ -29,6 +29,7 @@ def build_ics(items: list[tuple[Reservation, Room]]) -> str:
     ]
     for reservation, room in items:
         cancelled = reservation.status in (ReservationStatus.cancelled, ReservationStatus.no_show)
+        seat = f" - Koltuk {reservation.seat_number}" if reservation.seat_number else ""
         lines += [
             "BEGIN:VEVENT",
             f"UID:reservation-{reservation.id}@studyspot",
@@ -36,7 +37,7 @@ def build_ics(items: list[tuple[Reservation, Room]]) -> str:
             f"DTSTART:{_ics_utc(reservation.start_time)}",
             f"DTEND:{_ics_utc(reservation.end_time)}",
             f"SUMMARY:{_ics_escape('StudySpot: ' + room.name)}",
-            f"LOCATION:{_ics_escape(room.location)}",
+            f"LOCATION:{_ics_escape(room.location + seat)}",
             f"DESCRIPTION:{_ics_escape('Rezervasyon #%d. Check-in icin QR kodunuzu okutun.' % reservation.id)}",
             f"STATUS:{'CANCELLED' if cancelled else 'CONFIRMED'}",
             "BEGIN:VALARM",

@@ -70,9 +70,57 @@ def occupying_reservations(session: Session, room_id: int, start: datetime, end:
     return list(session.exec(stmt).all())
 
 
+def _seat_usage(reservations: list[Reservation]) -> tuple[set[int], int]:
+    """(dolu koltuk numaraları, koltuğu olmayan eski rezervasyon sayısı)"""
+    taken = {r.seat_number for r in reservations if r.seat_number is not None}
+    return taken, sum(1 for r in reservations if r.seat_number is None)
+
+
+def free_seats(session: Session, room: Room, start: datetime, end: datetime) -> list[int]:
+    """Aralığın tamamında boş olan koltuk numaraları (küçükten büyüğe). Yalnızca shared odalar."""
+    taken, _ = _seat_usage(occupying_reservations(session, room.id, start, end))
+    return [n for n in range(1, room.capacity + 1) if n not in taken]
+
+
 def remaining_seats(session: Session, room: Room, start: datetime, end: datetime) -> int:
-    busy = [(r.start_time, r.end_time) for r in occupying_reservations(session, room.id, start, end)]
-    return seats_limit(room) - scheduling.peak_concurrency(busy, start, end)
+    """Aralıkta alınabilecek yer sayısı.
+
+    Exclusive odada 0/1. Koltuk bazlı odada bir rezervasyon aralık boyunca tek koltukta
+    oturur; bu yüzden "aralığın tamamında boş koltuk" sayısı da sınırdır (10-11'de 1 numara,
+    11-12'de 2 numara doluysa 10-12 için ikisi de uygun değildir). Koltuk numarası olmayan
+    eski (v2) kayıtlar herhangi bir koltuğu tutuyor sayılır.
+    """
+    reservations = occupying_reservations(session, room.id, start, end)
+    busy = [(r.start_time, r.end_time) for r in reservations]
+    by_peak = seats_limit(room) - scheduling.peak_concurrency(busy, start, end)
+    if room.booking_mode == BookingMode.exclusive:
+        return by_peak
+    taken, unseated = _seat_usage(reservations)
+    whole_interval = sum(1 for n in range(1, room.capacity + 1) if n not in taken) - unseated
+    return min(by_peak, whole_interval)
+
+
+def pick_seat(session: Session, room: Room, start: datetime, end: datetime, seat_number: int | None) -> int | None:
+    """Rezervasyona verilecek koltuk. Exclusive odada None; seçilmediyse ilk boş koltuk."""
+    if room.booking_mode == BookingMode.exclusive:
+        if seat_number is not None:
+            raise BookingError("seat_not_applicable", "Bu oda tümüyle rezerve edilir, koltuk seçilmez")
+        return None
+    if seat_number is not None and not 1 <= seat_number <= room.capacity:
+        raise BookingError(
+            "invalid_seat", f"Koltuk numarası 1-{room.capacity} arasında olmalı", extra={"params": {"max": room.capacity}}
+        )
+    free = free_seats(session, room, start, end)
+    if seat_number is None:
+        return free[0]  # remaining_seats > 0 kontrolünden sonra çağrılır; liste boş olamaz
+    if seat_number not in free:
+        raise BookingError(
+            "seat_taken",
+            f"{seat_number} numaralı koltuk bu saatlerde dolu, başka bir koltuk seçin",
+            409,
+            extra={"params": {"seat": seat_number}},
+        )
+    return seat_number
 
 
 def validate_time_rules(room: Room, start: datetime, end: datetime, now: datetime, allow_started: bool = False) -> None:
@@ -86,19 +134,33 @@ def validate_time_rules(room: Room, start: datetime, end: datetime, now: datetim
         raise BookingError("room_inactive", "Bu oda şu anda rezervasyona kapalı")
     if start.time() < room.open_time or end.time() > room.close_time:
         raise BookingError(
-            "outside_hours", f"Oda yalnızca {room.open_time:%H:%M}-{room.close_time:%H:%M} arasında açık"
+            "outside_hours",
+            f"Oda yalnızca {room.open_time:%H:%M}-{room.close_time:%H:%M} arasında açık",
+            extra={"params": {"open": f"{room.open_time:%H:%M}", "close": f"{room.close_time:%H:%M}"}},
         )
     opening = datetime.combine(start.date(), room.open_time)
     slot = timedelta(minutes=room.slot_minutes)
     if (start - opening) % slot or (end - start) % slot:
-        raise BookingError("slot_misaligned", f"Saatler {room.slot_minutes} dakikalık dilimlere uymalı")
+        raise BookingError(
+            "slot_misaligned",
+            f"Saatler {room.slot_minutes} dakikalık dilimlere uymalı",
+            extra={"params": {"minutes": room.slot_minutes}},
+        )
     if _hours(start, end) > settings.MAX_RESERVATION_HOURS:
-        raise BookingError("too_long", f"Tek rezervasyon en fazla {settings.MAX_RESERVATION_HOURS:g} saat olabilir")
+        raise BookingError(
+            "too_long",
+            f"Tek rezervasyon en fazla {settings.MAX_RESERVATION_HOURS:g} saat olabilir",
+            extra={"params": {"hours": settings.MAX_RESERVATION_HOURS}},
+        )
     # Bekleme listesinden atamada (allow_started) başlamış ama bitmemiş slot da verilebilir
     if (end if allow_started else start) <= now:
         raise BookingError("in_past", "Geçmiş bir zaman için rezervasyon yapılamaz")
     if start.date() > now.date() + timedelta(days=settings.MAX_ADVANCE_DAYS):
-        raise BookingError("too_far", f"En fazla {settings.MAX_ADVANCE_DAYS} gün sonrasına rezervasyon yapılabilir")
+        raise BookingError(
+            "too_far",
+            f"En fazla {settings.MAX_ADVANCE_DAYS} gün sonrasına rezervasyon yapılabilir",
+            extra={"params": {"days": settings.MAX_ADVANCE_DAYS}},
+        )
 
 
 def ensure_user_eligible(user: User, now: datetime) -> None:
@@ -109,6 +171,7 @@ def ensure_user_eligible(user: User, now: datetime) -> None:
             "user_banned",
             f"Ceza nedeniyle {user.banned_until:%d.%m.%Y %H:%M} tarihine kadar rezervasyon yapamazsınız",
             403,
+            extra={"params": {"until": user.banned_until.isoformat()}},
         )
 
 
@@ -142,7 +205,10 @@ def ensure_within_limits(session: Session, user: User, start: datetime, end: dat
         )
         if used + requested > limit:
             raise BookingError(
-                code, f"{label} rezervasyon limitiniz {limit:g} saat (kullanılan: {used:g} saat)", 409
+                code,
+                f"{label} rezervasyon limitiniz {limit:g} saat (kullanılan: {used:g} saat)",
+                409,
+                extra={"params": {"limit": limit, "used": used}},
             )
 
 
@@ -155,35 +221,51 @@ def create_reservation(
     now: datetime,
     source: ReservationSource = ReservationSource.direct,
     allow_started: bool = False,
+    seat_number: int | None = None,
 ) -> Reservation:
-    """Tüm kuralları doğrular ve rezervasyonu oturuma ekler (commit etmez)."""
+    """Tüm kuralları doğrular ve rezervasyonu oturuma ekler (commit etmez).
+
+    Koltuk bazlı odada `seat_number` verilmezse aralığın tamamında boş olan ilk koltuk atanır.
+    """
     validate_time_rules(room, start, end, now, allow_started)
     ensure_user_eligible(user, now)
     ensure_no_user_conflict(session, user, start, end)
     ensure_within_limits(session, user, start, end)
     holiday = holidays.holiday_name(session, start.date())
     if holiday:
-        raise BookingError("holiday", f"{start:%d.%m.%Y} resmi tatil ({holiday}), rezervasyon yapılamaz")
+        raise BookingError(
+            "holiday",
+            f"{start:%d.%m.%Y} resmi tatil ({holiday}), rezervasyon yapılamaz",
+            extra={"params": {"date": start.date().isoformat(), "name": holiday}},
+        )
     if remaining_seats(session, room, start, end) <= 0:
         raise BookingError("slot_full", "Bu saat aralığı dolu. Bekleme listesine katılabilirsiniz.", 409)
+    seat = pick_seat(session, room, start, end, seat_number)
     reservation = Reservation(
-        user_id=user.id, room_id=room.id, start_time=start, end_time=end, source=source, created_at=now
+        user_id=user.id, room_id=room.id, start_time=start, end_time=end, seat_number=seat,
+        source=source, created_at=now,
     )
     session.add(reservation)
     session.flush()
     return reservation
 
 
-def book(session: Session, user: User, room_id: int, start: datetime, end: datetime) -> Reservation:
+def seat_label(reservation: Reservation) -> str:
+    return f" - Koltuk {reservation.seat_number}" if reservation.seat_number else ""
+
+
+def book(
+    session: Session, user: User, room_id: int, start: datetime, end: datetime, seat_number: int | None = None
+) -> Reservation:
     now = clock.now()
     with booking_lock:
         room = get_room(session, room_id)
-        reservation = create_reservation(session, user, room, start, end, now)
+        reservation = create_reservation(session, user, room, start, end, now, seat_number=seat_number)
         notify(
             session,
             user,
             "StudySpot: Rezervasyonunuz onaylandı",
-            f"{room.name} - {start:%d.%m.%Y %H:%M}-{end:%H:%M}. "
+            f"{room.name}{seat_label(reservation)} - {start:%d.%m.%Y %H:%M}-{end:%H:%M}. "
             f"Başlangıçtan sonraki {settings.CHECKIN_GRACE_MINUTES} dakika içinde QR ile check-in yapmayı unutmayın.",
             "reservation_confirmed",
         )
@@ -307,7 +389,9 @@ def check_in(session: Session, code: str, actor: User) -> Reservation:
         raise BookingError("not_active", f"Rezervasyon durumu check-in'e uygun değil ({reservation.status.value})", 409)
     opens = reservation.start_time - timedelta(minutes=settings.CHECKIN_OPEN_MINUTES_BEFORE)
     if now < opens:
-        raise BookingError("too_early", f"Check-in {opens:%H:%M} itibarıyla açılır", 409)
+        raise BookingError(
+            "too_early", f"Check-in {opens:%H:%M} itibarıyla açılır", 409, extra={"params": {"time": f"{opens:%H:%M}"}}
+        )
     if now > checkin_deadline(reservation) or now >= reservation.end_time:
         raise BookingError("too_late", "Check-in süresi doldu", 409)
     reservation.status = ReservationStatus.checked_in

@@ -100,13 +100,14 @@ def export_reservations(session: SessionDep, date_from: date, date_to: date):
     )
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["id", "room", "user_email", "user_name", "start_time", "end_time", "status", "source", "checked_in_at"])
+    writer.writerow(["id", "room", "user_email", "user_name", "start_time", "end_time", "status", "source", "checked_in_at", "seat"])
     for r, user, room in session.exec(stmt).all():
         writer.writerow(
             [
                 r.id, _csv_safe(room.name), _csv_safe(user.email), _csv_safe(user.full_name),
                 r.start_time.isoformat(), r.end_time.isoformat(),
                 r.status.value, r.source.value, r.checked_in_at.isoformat() if r.checked_in_at else "",
+                r.seat_number or "",
             ]
         )
     return Response(

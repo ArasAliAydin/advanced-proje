@@ -34,11 +34,13 @@ def _get_owned(session, reservation_id: int, user: User) -> Reservation:
 def create_reservation(data: ReservationCreate, session: SessionDep, user: CurrentUser):
     """Rezervasyon oluşturur.
 
+    Koltuk bazlı (shared) odada `seat_number` ile koltuk seçilebilir (bkz. `GET /rooms/{id}/seats`);
+    boş bırakılırsa ilk boş koltuk atanır. Seçilen koltuk doluysa 409 `seat_taken`.
     Slot doluysa 409 `slot_full` döner; yanıtın `suggestions` alanında kurallara uyan
     alternatif slotlar vardır (bkz. `GET /suggestions`). Bekleme listesine de katılınabilir.
     """
     try:
-        reservation = rs.book(session, user, data.room_id, data.start_time, data.end_time)
+        reservation = rs.book(session, user, data.room_id, data.start_time, data.end_time, data.seat_number)
     except rs.BookingError as exc:
         if exc.code == "slot_full":
             # Öneri hesabındaki bir sorun asıl hatayı (slot_full) gizlememeli

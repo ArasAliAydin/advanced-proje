@@ -94,7 +94,7 @@ def promote_waitlist(session: Session, room: Room, start: datetime, end: datetim
             session,
             user,
             "StudySpot: Bekleme listesinden rezervasyonunuz oluşturuldu",
-            f"{room.name} - {entry.start_time:%d.%m.%Y %H:%M}-{entry.end_time:%H:%M} slotu boşaldı "
+            f"{room.name}{rs.seat_label(reservation)} - {entry.start_time:%d.%m.%Y %H:%M}-{entry.end_time:%H:%M} slotu boşaldı "
             "ve rezervasyon otomatik olarak adınıza yapıldı.",
             "waitlist_promoted",
         )

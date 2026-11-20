@@ -73,6 +73,8 @@ class Room(SQLModel, table=True):
     open_time: time = time(8, 0)
     close_time: time = time(22, 0)
     slot_minutes: int = 60
+    # Koltuk haritasında bir sıradaki koltuk sayısı (yalnızca shared odalarda kullanılır)
+    seats_per_row: int = 6
     is_active: bool = True
     created_at: NaiveDatetime = Field(default_factory=clock.now)
 
@@ -83,6 +85,8 @@ class Reservation(SQLModel, table=True):
     room_id: int = Field(foreign_key="room.id", index=True)
     start_time: NaiveDatetime = Field(index=True)
     end_time: NaiveDatetime
+    # Koltuk bazlı (shared) odalarda 1..capacity; exclusive odalarda None
+    seat_number: int | None = None
     status: ReservationStatus = Field(default=ReservationStatus.confirmed, index=True)
     source: ReservationSource = Field(default=ReservationSource.direct)
     checkin_code: str = Field(default_factory=_checkin_code, index=True, unique=True)

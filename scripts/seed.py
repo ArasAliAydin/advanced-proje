@@ -21,9 +21,10 @@ STUDENT_PASSWORD = "Student123!"  # yalnızca demo hesapları için
 ROOMS = [
     dict(name="Grup Odası 1", location="Kütüphane 2. Kat", capacity=6, description="Akıllı tahta, 6 kişilik"),
     dict(name="Grup Odası 2", location="Kütüphane 2. Kat", capacity=4, slot_minutes=30),
-    dict(name="Sessiz Çalışma Salonu", location="Kütüphane Zemin Kat", capacity=8, room_type=RoomType.hall,
-         booking_mode=BookingMode.shared, close_time=time(23, 0)),
-    dict(name="Bilgisayar Lab A", location="Mühendislik B-104", capacity=5, room_type=RoomType.lab,
+    # Koltuk bazlı odalar: koltuk haritası için kapasite = koltuk sayısı, seats_per_row = bir sıradaki koltuk
+    dict(name="Sessiz Çalışma Salonu", location="Kütüphane Zemin Kat", capacity=24, seats_per_row=8,
+         room_type=RoomType.hall, booking_mode=BookingMode.shared, close_time=time(23, 0)),
+    dict(name="Bilgisayar Lab A", location="Mühendislik B-104", capacity=12, seats_per_row=4, room_type=RoomType.lab,
          booking_mode=BookingMode.shared, open_time=time(9, 0), close_time=time(18, 0)),
 ]
 STUDENTS = ["Ayşe Yılmaz", "Mehmet Demir", "Zeynep Kaya", "Can Öztürk", "Elif Şahin", "Burak Çelik"]
@@ -57,7 +58,7 @@ def seed() -> None:
                 seats = rs.seats_limit(room)
                 for hour in range(room.open_time.hour, room.close_time.hour):
                     peak = 0.75 if 11 <= hour <= 16 else 0.35
-                    for _ in range(seats):
+                    for seat in range(1, seats + 1):
                         if random.random() > peak * (0.4 if weekend else 1):
                             continue
                         start = datetime.combine(day, time(hour))
@@ -69,6 +70,7 @@ def seed() -> None:
                             Reservation(
                                 user_id=random.choice(students).id, room_id=room.id, start_time=start,
                                 end_time=start + timedelta(hours=1), status=status,
+                                seat_number=seat if room.booking_mode == BookingMode.shared else None,
                                 checked_in_at=start if status == ReservationStatus.completed else None,
                                 created_at=start - timedelta(days=1),
                             )

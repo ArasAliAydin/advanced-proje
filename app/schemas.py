@@ -57,6 +57,7 @@ class RoomBase(BaseModel):
     open_time: time = time(8, 0)
     close_time: time = time(22, 0)
     slot_minutes: int = Field(default=60, ge=15, le=240)
+    seats_per_row: int = Field(default=6, ge=1, le=50)
 
 
 class RoomCreate(RoomBase):
@@ -77,6 +78,7 @@ class RoomUpdate(BaseModel):
     open_time: time | None = None
     close_time: time | None = None
     slot_minutes: int | None = Field(default=None, ge=15, le=240)
+    seats_per_row: int | None = Field(default=None, ge=1, le=50)
     is_active: bool | None = None
 
 
@@ -100,6 +102,22 @@ class RoomAvailability(BaseModel):
     remaining_seats: int
 
 
+class SeatRead(BaseModel):
+    number: int
+    available: bool
+    mine: bool = False  # isteği yapan kullanıcının bu aralıktaki koltuğu
+
+
+class SeatMapRead(BaseModel):
+    room_id: int
+    capacity: int
+    seats_per_row: int
+    start_time: datetime
+    end_time: datetime
+    remaining_seats: int
+    seats: list[SeatRead]
+
+
 # --- Rezervasyon / bekleme listesi ---
 class IntervalRequest(BaseModel):
     room_id: int
@@ -113,7 +131,8 @@ class IntervalRequest(BaseModel):
 
 
 class ReservationCreate(IntervalRequest):
-    pass
+    # Yalnızca koltuk bazlı (shared) odalarda; boş bırakılırsa ilk boş koltuk atanır
+    seat_number: int | None = Field(default=None, ge=1)
 
 
 class WaitlistCreate(IntervalRequest):
@@ -127,6 +146,7 @@ class ReservationRead(ORMModel):
     room_name: str | None = None
     start_time: datetime
     end_time: datetime
+    seat_number: int | None = None
     status: ReservationStatus
     source: ReservationSource
     checkin_code: str

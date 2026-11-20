@@ -6,8 +6,17 @@ from sqlmodel import select
 from app.core import clock
 from app.core.config import settings
 from app.core.deps import AdminUser, CurrentUser, SessionDep
-from app.models import Room, RoomType
-from app.schemas import OccupancyCell, RoomAvailability, RoomCreate, RoomRead, RoomUpdate, SlotRead
+from app.models import BookingMode, Room, RoomType
+from app.schemas import (
+    OccupancyCell,
+    RoomAvailability,
+    RoomCreate,
+    RoomRead,
+    RoomUpdate,
+    SeatMapRead,
+    SeatRead,
+    SlotRead,
+)
 from app.services import holidays, scheduling, suggestions
 from app.services import reservation_service as rs
 
@@ -126,6 +135,32 @@ def room_availability(room_id: int, day: date, session: SessionDep, _: CurrentUs
         )
         start = end
     return slots
+
+
+@router.get("/{room_id}/seats", response_model=SeatMapRead)
+def room_seats(room_id: int, start_time: datetime, end_time: datetime, session: SessionDep, user: CurrentUser):
+    """Koltuk bazlı (shared) odanın koltuk haritası: aralığın tamamında hangi koltuklar boş.
+
+    Rezervasyonda `seat_number` ile koltuk seçmek için kullanılır. Exclusive odalarda 400 `seat_not_applicable`.
+    """
+    room = _get_room(session, room_id)
+    start, end = clock.to_local_naive(start_time), clock.to_local_naive(end_time)
+    if end <= start:
+        raise rs.BookingError("invalid_interval", "Bitiş saati başlangıçtan sonra olmalı")
+    if room.booking_mode != BookingMode.shared:
+        raise rs.BookingError("seat_not_applicable", "Bu oda tümüyle rezerve edilir, koltuk seçilmez")
+    occupying = rs.occupying_reservations(session, room.id, start, end)
+    taken = {r.seat_number for r in occupying if r.seat_number is not None}
+    mine = {r.seat_number for r in occupying if r.user_id == user.id and r.seat_number is not None}
+    return SeatMapRead(
+        room_id=room.id,
+        capacity=room.capacity,
+        seats_per_row=room.seats_per_row,
+        start_time=start,
+        end_time=end,
+        remaining_seats=max(0, rs.remaining_seats(session, room, start, end)),
+        seats=[SeatRead(number=n, available=n not in taken, mine=n in mine) for n in range(1, room.capacity + 1)],
+    )
 
 
 @router.get("/{room_id}/quiet-hours", response_model=list[OccupancyCell])
