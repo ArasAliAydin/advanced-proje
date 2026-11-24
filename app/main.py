@@ -10,7 +10,7 @@ from app.core.config import INSECURE_SECRET_KEYS, settings
 from app.core.database import create_db_and_tables, engine
 from app.core.security import hash_password
 from app.models import Role, User
-from app.routers import admin, analytics, auth, reservations, rooms, waitlist
+from app.routers import admin, analytics, auth, reservations, rooms, stats, waitlist
 from app.services import jobs
 from app.services.reservation_service import BookingError
 
