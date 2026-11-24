@@ -47,7 +47,9 @@ def _rooms(session: Session, room_id: int | None, d_from: date, d_to: date) -> l
     if room_id:
         return list(session.exec(select(Room).where(Room.id == room_id)).all())
     lo, hi = _range(d_from, d_to)
-    used = select(Reservation.room_id).where(Reservation.start_time >= lo, Reservation.start_time < hi)
+    used = select(Reservation.room_id).where(
+        Reservation.start_time >= lo, Reservation.start_time < hi, Reservation.is_demo == False  # noqa: E712
+    )
     stmt = select(Room).where(or_(Room.is_active == True, col(Room.id).in_(used)))  # noqa: E712
     return list(session.exec(stmt).all())
 
@@ -57,6 +59,7 @@ def _reservations(session: Session, rooms: list[Room], d_from: date, d_to: date,
     stmt = select(Reservation).where(
         col(Reservation.room_id).in_([r.id for r in rooms]),
         col(Reservation.status).in_(statuses),
+        Reservation.is_demo == False,  # noqa: E712
         Reservation.start_time >= lo,
         Reservation.start_time < hi,
     )

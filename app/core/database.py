@@ -27,6 +27,7 @@ engine = _make_engine(settings.DATABASE_URL)
 ADDED_COLUMNS = [
     ("room", "seats_per_row", "INTEGER NOT NULL DEFAULT 6"),
     ("reservation", "seat_number", "INTEGER"),
+    ("reservation", "is_demo", "BOOLEAN NOT NULL DEFAULT 0"),
 ]
 
 

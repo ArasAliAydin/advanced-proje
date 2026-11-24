@@ -117,10 +117,14 @@ def test_missing_columns_are_added_to_old_database(tmp_path):
         conn.execute(text("CREATE TABLE room (id INTEGER PRIMARY KEY, name VARCHAR)"))
         conn.execute(text("CREATE TABLE reservation (id INTEGER PRIMARY KEY, room_id INTEGER)"))
         conn.execute(text("INSERT INTO room (id, name) VALUES (1, 'Eski oda')"))
-    assert sorted(add_missing_columns(old)) == ["reservation.seat_number", "room.seats_per_row"]
+        conn.execute(text("INSERT INTO reservation (id, room_id) VALUES (1, 1)"))
+    assert sorted(add_missing_columns(old)) == [
+        "reservation.is_demo", "reservation.seat_number", "room.seats_per_row",
+    ]
     assert add_missing_columns(old) == []  # ikinci çalıştırmada değişiklik yok
     columns = {c["name"] for c in inspect(old).get_columns("room")}
     assert "seats_per_row" in columns
     with old.connect() as conn:
         assert conn.execute(text("SELECT seats_per_row FROM room")).scalar() == 6
+        assert conn.execute(text("SELECT is_demo FROM reservation")).scalar() == 0
     old.dispose()

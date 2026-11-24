@@ -4,7 +4,7 @@
  */
 "use strict";
 
-const ADMIN_TABS = ["report", "rooms", "users", "reservations", "waitlist", "holidays"];
+const ADMIN_TABS = ["report", "rooms", "users", "reservations", "waitlist", "issues", "holidays"];
 const RESERVATION_STATUSES = ["confirmed", "checked_in", "completed", "cancelled", "no_show"];
 const WAIT_STATUSES = ["waiting", "promoted", "cancelled", "expired"];
 const PAGE_SIZE = 100;
@@ -63,7 +63,7 @@ async function renderAdmin(tab) {
 
   const renderers = {
     report: adminReport, rooms: adminRooms, users: adminUsers,
-    reservations: adminReservations, waitlist: adminWaitlist, holidays: adminHolidays,
+    reservations: adminReservations, waitlist: adminWaitlist, issues: adminIssues, holidays: adminHolidays,
   };
   try {
     await renderers[tab](body);
@@ -578,7 +578,8 @@ async function adminReservations(body) {
         h("div", null, h("b", null, r.room_name || adminRoomName(r.room_id)), r.seat_number && h("div", { class: "muted small" }, seatText(r))),
         h("div", null, userLabel(r.user_id), u && h("div", { class: "muted small" }, u.email)),
         fmtRange(r.start_time, r.end_time),
-        h("div", null, statusBadge(r.status), r.cancel_reason && h("div", { class: "muted small" }, serverText(r.cancel_reason))),
+        h("div", null, statusBadge(r.status), r.is_demo && badge(t("feedback.demo.badge"), "warn"),
+          r.cancel_reason && h("div", { class: "muted small" }, serverText(r.cancel_reason))),
         t(`source.${r.source}`),
         r.status === "confirmed" ? actionBtn(t("ares.cancel"), (ev) => cancel(r, ev.currentTarget), "btn danger small") : "—",
       ];
@@ -698,6 +699,49 @@ async function adminHolidays(body) {
       h("p", { class: "muted small", style: "flex:1;min-width:220px;margin:0" }, t("ah.lead")),
       labeled("h-year", t("ah.year"), yearSelect, "min-width:120px")),
     h("section", { class: "card" }, results),
+  );
+  await load();
+}
+
+// ---------------------------------------------------------------- Arıza bildirimleri
+async function adminIssues(body) {
+  await Promise.all([loadAdminRooms(), loadAdminUsers()]);
+  const results = h("div");
+  const load = async () => {
+    results.replaceChildren(h("p", { class: "muted" }, t("app.loading")));
+    const issues = await api("/feedback/admin/issues");
+    results.replaceChildren(issues.length
+      ? rtable(
+        [
+          { label: t("feedback.admin.room") },
+          { label: t("feedback.admin.user") },
+          { label: t("feedback.admin.reservation") },
+          { label: t("feedback.admin.description") },
+          { label: t("feedback.admin.reported") },
+          { label: t("common.actions") },
+        ],
+        issues.map((issue) => [
+          adminRoomName(issue.room_id),
+          userLabel(issue.user_id),
+          `#${issue.reservation_id}`,
+          issue.description,
+          fmtDateTime(issue.created_at),
+          actionBtn(t("feedback.admin.resolve"), async (event) => {
+            await busy(event.currentTarget, async () => {
+              await api(`/feedback/admin/issues/${issue.id}/resolve`, { method: "PATCH" });
+              toast(t("feedback.admin.resolved"));
+              await load();
+            });
+          }, "btn small"),
+        ]),
+      )
+      : h("div", { class: "alert info" }, t("feedback.admin.empty")));
+  };
+  body.replaceChildren(
+    h("section", { class: "card" },
+      h("h2", null, t("feedback.admin.title")),
+      h("p", { class: "muted small" }, t("feedback.admin.lead")),
+      results),
   );
   await load();
 }

@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     SCHEDULER_INTERVAL_SECONDS: int = 60
     REMINDER_MINUTES_BEFORE: int = 30
 
+    # --- Sunum / demo: tamamlanmış örnek rezervasyon ve arıza bildirimini test etme ---
+    DEMO_MODE_ENABLED: bool = False
+
     # --- Harici API: resmi tatiller (date.nager.at) ---
     HOLIDAY_CHECK_ENABLED: bool = True
     HOLIDAY_COUNTRY: str = "TR"

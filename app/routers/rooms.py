@@ -1,12 +1,13 @@
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import func
 from sqlmodel import select
 
 from app.core import clock
 from app.core.config import settings
 from app.core.deps import AdminUser, CurrentUser, SessionDep
-from app.models import BookingMode, Room, RoomType
+from app.models import BookingMode, Room, RoomDirectRating, RoomRating, RoomType
 from app.schemas import (
     OccupancyCell,
     RoomAvailability,
@@ -28,6 +29,33 @@ def _get_room(session, room_id: int) -> Room:
     if room is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Oda bulunamadı")
     return room
+
+
+def _room_reads(session, rooms: list[Room]) -> list[RoomRead]:
+    room_ids = [room.id for room in rooms]
+    ratings = {
+        room_id: [float(average) * count, count]
+        for room_id, average, count in session.exec(
+            select(RoomRating.room_id, func.avg(RoomRating.rating), func.count(RoomRating.id))
+            .where(RoomRating.room_id.in_(room_ids))
+            .group_by(RoomRating.room_id)
+        ).all()
+    } if room_ids else {}
+    if room_ids:
+        for room_id, average, count in session.exec(
+            select(RoomDirectRating.room_id, func.avg(RoomDirectRating.rating), func.count(RoomDirectRating.id))
+            .where(RoomDirectRating.room_id.in_(room_ids))
+            .group_by(RoomDirectRating.room_id)
+        ).all():
+            total = ratings.setdefault(room_id, [0.0, 0])
+            total[0] += float(average) * count
+            total[1] += count
+    return [
+        RoomRead.model_validate(room).model_copy(
+            update={"average_rating": ratings[room.id][0] / ratings[room.id][1] if room.id in ratings else None}
+        )
+        for room in rooms
+    ]
 
 
 def _ensure_unique_name(session, name: str, exclude_id: int | None = None) -> None:
@@ -73,7 +101,7 @@ def list_rooms(
         stmt = stmt.where(Room.room_type == room_type)
     if not include_inactive:
         stmt = stmt.where(Room.is_active == True)  # noqa: E712
-    return session.exec(stmt).all()
+    return _room_reads(session, session.exec(stmt).all())
 
 
 @router.get("/available", response_model=list[RoomAvailability])
@@ -92,16 +120,17 @@ def available_rooms(
     if not candidates or holidays.holiday_name(session, start.date()):
         return []
     result = []
+    room_reads = {room_read.id: room_read for room_read in _room_reads(session, candidates)}
     for room in candidates:
         remaining = rs.remaining_seats(session, room, start, end)
         if remaining > 0:
-            result.append(RoomAvailability(room=RoomRead.model_validate(room), remaining_seats=remaining))
+            result.append(RoomAvailability(room=room_reads[room.id], remaining_seats=remaining))
     return result
 
 
 @router.get("/{room_id}", response_model=RoomRead)
 def get_room(room_id: int, session: SessionDep, _: CurrentUser):
-    return _get_room(session, room_id)
+    return _room_reads(session, [_get_room(session, room_id)])[0]
 
 
 @router.get("/{room_id}/availability", response_model=list[SlotRead])
@@ -186,7 +215,7 @@ def create_room(data: RoomCreate, session: SessionDep, _: AdminUser):
     session.add(room)
     session.commit()
     session.refresh(room)
-    return room
+    return _room_reads(session, [room])[0]
 
 
 @router.patch("/{room_id}", response_model=RoomRead)
@@ -209,7 +238,7 @@ def update_room(room_id: int, data: RoomUpdate, session: SessionDep, _: AdminUse
         session.add(room)
         session.commit()
     session.refresh(room)
-    return room
+    return _room_reads(session, [room])[0]
 
 
 @router.delete("/{room_id}", response_model=RoomRead)
@@ -221,4 +250,4 @@ def deactivate_room(room_id: int, session: SessionDep, _: AdminUser):
     room = _get_room(session, room_id)
     rs.close_room(session, room, clock.now())
     session.refresh(room)
-    return room
+    return _room_reads(session, [room])[0]

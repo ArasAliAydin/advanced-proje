@@ -85,6 +85,7 @@ class RoomUpdate(BaseModel):
 class RoomRead(ORMModel, RoomBase):
     id: int
     is_active: bool
+    average_rating: float | None = None
 
 
 class SlotRead(BaseModel):
@@ -149,6 +150,7 @@ class ReservationRead(ORMModel):
     seat_number: int | None = None
     status: ReservationStatus
     source: ReservationSource
+    is_demo: bool = False
     checkin_code: str
     checked_in_at: datetime | None
     cancelled_at: datetime | None
@@ -170,6 +172,57 @@ class WaitlistRead(ORMModel):
 
 class CheckinRequest(BaseModel):
     code: str = Field(min_length=4, max_length=200)
+
+
+# --- Geri bildirim / arıza ---
+class RoomRatingCreate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = Field(default=None, max_length=1000)
+
+
+class RoomRatingRead(ORMModel):
+    id: int
+    reservation_id: int
+    room_id: int
+    rating: int
+    comment: str | None
+    created_at: datetime
+
+
+class RoomDirectRatingRead(ORMModel):
+    id: int
+    room_id: int
+    rating: int
+    comment: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class MaintenanceIssueCreate(BaseModel):
+    description: str = Field(min_length=3, max_length=500)
+
+    @field_validator("description")
+    @classmethod
+    def _non_blank_description(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("Arıza açıklaması en az 3 karakter olmalı")
+        return value
+
+
+class DemoReservationCreate(BaseModel):
+    room_id: int
+
+
+class MaintenanceIssueRead(ORMModel):
+    id: int
+    reservation_id: int
+    user_id: int
+    room_id: int
+    description: str
+    is_resolved: bool
+    created_at: datetime
+    resolved_at: datetime | None
 
 
 # --- Akıllı slot önerisi ---
