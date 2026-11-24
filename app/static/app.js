@@ -12,7 +12,7 @@ const MAX_RESERVATION_MINUTES = 180; // sunucudaki MAX_RESERVATION_HOURS varsay�
 const BOOKING_DAYS = 14;             // MAX_ADVANCE_DAYS varsayılanı
 
 const state = { token: null, user: null, rooms: [] };
-const roomFilterState = { search: "", roomType: "", minCapacity: "", onlyAvailable: false };
+const roomFilterState = { search: "", roomType: "", minCapacity: "", onlyAvailable: false, favoritesOnly: false };
 const roomAvailabilityStatuses = new Map();
 const roomAvailabilityRequested = new Set();
 const roomAvailabilityPending = new Set();
@@ -50,6 +50,9 @@ const store = {
   set(key, value) { try { localStorage.setItem(key, value); } catch { /* gizli pencere vb. */ } },
   del(key) { try { localStorage.removeItem(key); } catch { /* yok say */ } },
 };
+const ROOM_FAVORITES_KEY = "studyspot_favorite_rooms";
+const roomFavorites = new Set((store.get(ROOM_FAVORITES_KEY) || "").split(",")
+  .map(Number).filter((id) => Number.isInteger(id) && id > 0));
 
 const pad = (n) => String(n).padStart(2, "0");
 const isoDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -334,20 +337,41 @@ async function renderRooms(roomId, day) {
       const placeholder = h("span", { class: "badge room-availability room-availability-loading", "aria-hidden": "true" });
       availabilityBadges.set(r.id, placeholder);
       roomAvailabilityBadgeElements.set(r.id, placeholder);
-      const card = h("button", {
-        type: "button", class: "card room-card", "aria-pressed": String(r.id === roomId),
-        onclick: () => { location.hash = `#/rooms/${r.id}/${day}`; },
-      },
-      h("div", { class: "room-card-heading" },
-        h("h3", null, r.name),
-        h("div", { class: "muted small" }, r.location || "—"),
-        placeholder,
-      ),
-      h("div", { class: "meta" },
-        badge(t(`type.${r.room_type}`)),
-        badge(t("common.people", { n: r.capacity })),
-        badge(`${r.open_time.slice(0, 5)}–${r.close_time.slice(0, 5)}`),
-      ));
+      const isFavorite = roomFavorites.has(r.id);
+      const favoriteButton = h("button", {
+        type: "button", class: "room-favorite-toggle", "aria-pressed": String(isFavorite),
+        "aria-label": t(isFavorite ? "rooms.favorite.remove" : "rooms.favorite.add", { room: r.name }),
+        title: t(isFavorite ? "rooms.favorite.remove" : "rooms.favorite.add", { room: r.name }),
+        onclick: () => {
+          const favorited = toggleRoomFavorite(r.id);
+          const label = t(favorited ? "rooms.favorite.remove" : "rooms.favorite.add", { room: r.name });
+          favoriteButton.textContent = favorited ? "★" : "☆";
+          favoriteButton.setAttribute("aria-pressed", String(favorited));
+          favoriteButton.setAttribute("aria-label", label);
+          favoriteButton.title = label;
+          if (!favorited && roomFilterState.favoritesOnly && r.id !== roomId) favoritesOnlyInput.focus();
+          applyRoomFilters();
+        },
+      }, isFavorite ? "★" : "☆");
+      const card = h("div", { class: `card room-card${r.id === roomId ? " selected" : ""}` },
+        h("button", {
+          type: "button", class: "room-card-open", "aria-pressed": String(r.id === roomId),
+          onclick: () => {
+            location.hash = r.id === roomId ? "#/rooms" : `#/rooms/${r.id}/${day}`;
+          },
+        },
+        h("div", { class: "room-card-heading" },
+          h("h3", null, r.name),
+          h("div", { class: "muted small" }, r.location || "—"),
+          placeholder,
+        ),
+        h("div", { class: "meta" },
+          badge(t(`type.${r.room_type}`)),
+          badge(t("common.people", { n: r.capacity })),
+          badge(`${r.open_time.slice(0, 5)}–${r.close_time.slice(0, 5)}`),
+        )),
+        favoriteButton,
+      );
       cards.set(r.id, card);
       return card;
     }),
@@ -368,6 +392,9 @@ async function renderRooms(roomId, day) {
   });
   const availableOnlyInput = h("input", {
     id: "rooms-filter-available", type: "checkbox", checked: roomFilterState.onlyAvailable,
+  });
+  const favoritesOnlyInput = h("input", {
+    id: "rooms-filter-favorites", type: "checkbox", checked: roomFilterState.favoritesOnly,
   });
   const resultCount = h("span", { class: "room-filter-count", "aria-live": "polite" });
   const clearButton = h("button", {
@@ -395,6 +422,8 @@ async function renderRooms(roomId, day) {
     h("div", { class: "room-filter-actions" },
       h("label", { class: "room-filter-toggle", for: "rooms-filter-available" },
         availableOnlyInput, t("rooms.filter.availableOnly")),
+      h("label", { class: "room-filter-toggle", for: "rooms-filter-favorites" },
+        favoritesOnlyInput, t("rooms.filter.favoritesOnly")),
       clearButton,
       resultCount,
     ),
@@ -410,7 +439,8 @@ async function renderRooms(roomId, day) {
       const matches = (!query || normalizeRoomSearch(`${r.name} ${r.location}`).includes(query))
         && (!roomFilterState.roomType || r.room_type === roomFilterState.roomType)
         && (!roomFilterState.minCapacity || (Number.isFinite(minCapacity) && r.capacity >= minCapacity))
-        && (!roomFilterState.onlyAvailable || status === "available" || status === "unknown");
+        && (!roomFilterState.onlyAvailable || status === "available" || status === "unknown")
+        && (!roomFilterState.favoritesOnly || roomFavorites.has(r.id));
       if (matches) matchesCount++;
       cards.get(r.id).hidden = !matches && r.id !== roomId;
     }
@@ -426,10 +456,12 @@ async function renderRooms(roomId, day) {
     roomFilterState.roomType = "";
     roomFilterState.minCapacity = "";
     roomFilterState.onlyAvailable = false;
+    roomFilterState.favoritesOnly = false;
     searchInput.value = "";
     roomTypeSelect.value = "";
     capacityInput.value = "";
     availableOnlyInput.checked = false;
+    favoritesOnlyInput.checked = false;
     applyRoomFilters();
   }
 
@@ -447,6 +479,10 @@ async function renderRooms(roomId, day) {
   });
   availableOnlyInput.addEventListener("change", () => {
     roomFilterState.onlyAvailable = availableOnlyInput.checked;
+    applyRoomFilters();
+  });
+  favoritesOnlyInput.addEventListener("change", () => {
+    roomFilterState.favoritesOnly = favoritesOnlyInput.checked;
     applyRoomFilters();
   });
 
@@ -472,7 +508,14 @@ async function renderRooms(roomId, day) {
 
 function roomFiltersActive() {
   return Boolean(roomFilterState.search.trim() || roomFilterState.roomType
-    || roomFilterState.minCapacity || roomFilterState.onlyAvailable);
+    || roomFilterState.minCapacity || roomFilterState.onlyAvailable || roomFilterState.favoritesOnly);
+}
+
+function toggleRoomFavorite(roomId) {
+  if (roomFavorites.has(roomId)) roomFavorites.delete(roomId);
+  else roomFavorites.add(roomId);
+  store.set(ROOM_FAVORITES_KEY, [...roomFavorites].join(","));
+  return roomFavorites.has(roomId);
 }
 
 function classifyRoomAvailability(room, slots) {
