@@ -214,3 +214,59 @@ class Summary(BaseModel):
     banned_users: int
     busiest_hour: int | None
     busiest_weekday: str | None
+class FavoriteRoom(BaseModel):
+    room_id: int
+    room_name: str | None
+    hours: float
+
+
+class WeekHours(BaseModel):
+    week_start: date
+    booked_hours: float     # limite sayılan (onaylı, katılınan, gelinmeyen)
+    attended_hours: float   # check-in yapılan
+
+
+class MyStats(BaseModel):
+    week_start: date
+    week_used_hours: float
+    week_limit_hours: float
+    week_remaining_hours: float
+    day_used_hours: float
+    day_limit_hours: float
+    total_reservations: int
+    attended: int
+    attended_hours: float
+    no_show: int
+    cancelled: int
+    upcoming: int
+    attendance_rate: float | None   # katılınan / (katılınan + gelinmeyen); hiç yoksa None
+    no_show_rate: float | None
+    favorite_room: FavoriteRoom | None
+    favorite_hour: int | None
+    favorite_weekday: int | None    # 0 = Pazartesi
+    favorite_weekday_name: str | None
+    streak_weeks: int
+    penalty_points: int
+    penalty_threshold: int
+    banned_until: datetime | None
+    weekly_history: list[WeekHours]
+
+
+class ForecastHour(BaseModel):
+    hour: int
+    predicted: float | None   # geçmiş haftalardan ağırlıklı ortalama; veri yoksa None
+    booked_now: float         # o güne şimdiden yapılmış rezervasyonların doluluğu
+    expected: float           # max(predicted, booked_now)
+    level: str                # low | medium | high
+    past: bool
+
+
+class RoomForecast(BaseModel):
+    room_id: int
+    day: date
+    weekday: int
+    weeks_used: int
+    history_days: list[date]
+    hours: list[ForecastHour]
+    best_hours: list[int]
+    peak_hour: int | None
