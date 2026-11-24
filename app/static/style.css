@@ -170,8 +170,30 @@ input, select {
 .badge.mine { background: var(--mine-bg); color: var(--mine); }
 
 /* --- Odalar --- */
-.room-card { cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
+.room-card {
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+  cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%;
+}
 .room-card[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.room-card-heading {
+  display: flex; flex-direction: column; align-items: stretch; gap: .3rem;
+  width: 100%; min-width: 0;
+}
+.room-card-heading h3 { width: 100%; margin: 0; overflow-wrap: anywhere; }
+.room-availability {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+  width: 100%; min-height: calc(2.5em + .5rem); padding: .2rem .5rem; gap: .1rem;
+  border-radius: 8px; line-height: 1.25; white-space: normal; overflow-wrap: anywhere;
+}
+.room-availability-seats { font-weight: 500; }
+.room-availability-loading {
+  background: var(--surface-2);
+  animation: room-availability-pulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes room-availability-pulse { to { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) {
+  .room-availability-loading { animation: none; }
+}
 .room-card .meta { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
 
 .days { display: flex; gap: .35rem; overflow-x: auto; padding-bottom: .25rem; }
