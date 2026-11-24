@@ -127,6 +127,17 @@ h3 { font-size: 1rem; }
 .grid { display: grid; gap: .75rem; }
 .grid.rooms { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .grid.stats { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.room-filter-bar { display: grid; gap: .75rem; }
+.room-filter-fields {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(150px, 1fr) minmax(120px, .7fr);
+  gap: .75rem; align-items: end;
+}
+.room-filter-field { min-width: 0; }
+.room-filter-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.room-filter-toggle { display: inline-flex; align-items: center; gap: .4rem; margin: 0; cursor: pointer; }
+.room-filter-toggle input { width: auto; min-height: 0; margin: 0; }
+.room-filter-count { margin-left: auto; color: var(--muted); font-size: .85rem; }
+.room-filter-empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
@@ -343,6 +354,8 @@ code.code { word-break: break-all; font-size: .8rem; background: var(--surface-2
     overflow-x: auto; padding-bottom: .35rem; scroll-snap-type: x proximity;
   }
   .grid.rooms > * { scroll-snap-align: start; }
+  .room-filter-fields { grid-template-columns: 1fr; }
+  .room-filter-count { width: 100%; margin-left: 0; }
   #room-detail { scroll-margin-top: 110px; }
   .suggestion { grid-template-columns: 1fr; }
   .heatmap td { width: 26px; height: 24px; font-size: .65rem; }
