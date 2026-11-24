@@ -36,12 +36,20 @@ COUNTED_FOR_LIMITS = (
 
 
 class BookingError(Exception):
-    """İş kuralı ihlali. main.py'deki handler bunu JSON hata yanıtına çevirir."""
+    """İş kuralı ihlali."""
 
-    def __init__(self, code: str, message: str, status_code: int = 400):
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        status_code: int = 400,
+        params: dict | None = None,
+    ):
         super().__init__(message)
-        self.code, self.message, self.status_code = code, message, status_code
-
+        self.code = code
+        self.message = message
+        self.status_code = status_code
+        self.params = params or {}
 
 def _hours(start: datetime, end: datetime) -> float:
     return (end - start).total_seconds() / 3600
