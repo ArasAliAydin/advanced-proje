@@ -172,6 +172,16 @@ input, select {
 /* --- Odalar --- */
 .room-card { cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
 .room-card[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.room-card-heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.room-card-heading h3 { margin: 0; }
+.room-availability-loading {
+  flex: 0 0 4.5rem; height: 1.2rem; padding: 0; background: var(--surface-2);
+  animation: room-availability-pulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes room-availability-pulse { to { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) {
+  .room-availability-loading { animation: none; }
+}
 .room-card .meta { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
 
 .days { display: flex; gap: .35rem; overflow-x: auto; padding-bottom: .25rem; }

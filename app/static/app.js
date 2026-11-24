@@ -318,19 +318,27 @@ async function renderRooms(roomId, day) {
   const rooms = await ensureRooms();
   const room = rooms.find((r) => r.id === roomId);
   day = day || today();
+  const availabilityBadges = new Map();
 
   const list = h("div", { class: "grid rooms" },
-    rooms.map((r) => h("button", {
-      type: "button", class: "card room-card", "aria-pressed": String(r.id === roomId),
-      onclick: () => { location.hash = `#/rooms/${r.id}/${day}`; },
-    },
-    h("h3", null, r.name),
-    h("div", { class: "muted small" }, r.location || "—"),
-    h("div", { class: "meta" },
-      badge(t(`type.${r.room_type}`)),
-      badge(t("common.people", { n: r.capacity })),
-      badge(`${r.open_time.slice(0, 5)}–${r.close_time.slice(0, 5)}`),
-    ))),
+    rooms.map((r) => {
+      const placeholder = h("span", { class: "badge room-availability-loading", "aria-hidden": "true" });
+      availabilityBadges.set(r.id, placeholder);
+      return h("button", {
+        type: "button", class: "card room-card", "aria-pressed": String(r.id === roomId),
+        onclick: () => { location.hash = `#/rooms/${r.id}/${day}`; },
+      },
+      h("div", { class: "room-card-heading" },
+        h("h3", null, r.name),
+        placeholder,
+      ),
+      h("div", { class: "muted small" }, r.location || "—"),
+      h("div", { class: "meta" },
+        badge(t(`type.${r.room_type}`)),
+        badge(t("common.people", { n: r.capacity })),
+        badge(`${r.open_time.slice(0, 5)}–${r.close_time.slice(0, 5)}`),
+      ));
+    }),
   );
 
   const detail = h("section", { class: "card stack", id: "room-detail" });
@@ -341,11 +349,45 @@ async function renderRooms(roomId, day) {
       room ? detail : null,
     ),
   );
+  loadRoomAvailabilityBadges(rooms, availabilityBadges);
   if (!room) return;
   // Telefonda oda kartları yatay şerit: seçili kart görünür olsun
   const selected = list.querySelector('[aria-pressed="true"]');
   if (selected) list.scrollLeft = selected.offsetLeft - list.offsetLeft;
   await renderRoomDetail(detail, room, day);
+}
+
+function loadRoomAvailabilityBadges(rooms, placeholders) {
+  const day = today();
+  Promise.all(rooms.map(async (room) => {
+    const placeholder = placeholders.get(room.id);
+    try {
+      const slots = await api(`/rooms/${room.id}/availability?day=${day}`);
+      let label, kind = "";
+      const closedReasons = ["holiday", "room_inactive", "too_far"];
+      if (!room.is_active || slots.length === 0 || slots.every((slot) => closedReasons.includes(slot.reason))) {
+        label = t("rooms.availability.closed");
+      } else {
+        const availableSlot = slots.find((slot) => slot.available === true);
+        const fullSlot = slots.some((slot) => slot.reason === "slot_full");
+        if (availableSlot) {
+          label = t("rooms.availability.availableFrom", { time: hm(availableSlot.start_time) });
+          kind = "ok";
+          if (room.booking_mode === "shared" && Number.isFinite(availableSlot.remaining_seats)) {
+            label += ` · ${t("rooms.availability.seatsFree", { n: fmtNum(availableSlot.remaining_seats) })}`;
+          }
+        } else if (fullSlot) {
+          label = t("rooms.availability.full");
+          kind = "danger";
+        } else {
+          label = t("rooms.availability.closedToday");
+        }
+      }
+      placeholder.replaceWith(badge(label, kind));
+    } catch {
+      placeholder.remove();
+    }
+  }));
 }
 
 async function renderRoomDetail(container, room, day) {
