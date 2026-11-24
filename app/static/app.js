@@ -322,7 +322,7 @@ async function renderRooms(roomId, day) {
 
   const list = h("div", { class: "grid rooms" },
     rooms.map((r) => {
-      const placeholder = h("span", { class: "badge room-availability-loading", "aria-hidden": "true" });
+      const placeholder = h("span", { class: "badge room-availability room-availability-loading", "aria-hidden": "true" });
       availabilityBadges.set(r.id, placeholder);
       return h("button", {
         type: "button", class: "card room-card", "aria-pressed": String(r.id === roomId),
@@ -330,9 +330,9 @@ async function renderRooms(roomId, day) {
       },
       h("div", { class: "room-card-heading" },
         h("h3", null, r.name),
+        h("div", { class: "muted small" }, r.location || "—"),
         placeholder,
       ),
-      h("div", { class: "muted small" }, r.location || "—"),
       h("div", { class: "meta" },
         badge(t(`type.${r.room_type}`)),
         badge(t("common.people", { n: r.capacity })),
@@ -363,7 +363,7 @@ function loadRoomAvailabilityBadges(rooms, placeholders) {
     const placeholder = placeholders.get(room.id);
     try {
       const slots = await api(`/rooms/${room.id}/availability?day=${day}`);
-      let label, kind = "";
+      let label, kind = "", seatsLabel = null;
       const closedReasons = ["holiday", "room_inactive", "too_far"];
       if (!room.is_active || slots.length === 0 || slots.every((slot) => closedReasons.includes(slot.reason))) {
         label = t("rooms.availability.closed");
@@ -374,7 +374,7 @@ function loadRoomAvailabilityBadges(rooms, placeholders) {
           label = t("rooms.availability.availableFrom", { time: hm(availableSlot.start_time) });
           kind = "ok";
           if (room.booking_mode === "shared" && Number.isFinite(availableSlot.remaining_seats)) {
-            label += ` · ${t("rooms.availability.seatsFree", { n: fmtNum(availableSlot.remaining_seats) })}`;
+            seatsLabel = t("rooms.availability.seatsFree", { n: fmtNum(availableSlot.remaining_seats) });
           }
         } else if (fullSlot) {
           label = t("rooms.availability.full");
@@ -383,7 +383,15 @@ function loadRoomAvailabilityBadges(rooms, placeholders) {
           label = t("rooms.availability.closedToday");
         }
       }
-      placeholder.replaceWith(badge(label, kind));
+      const result = badge(label, kind);
+      result.classList.add("room-availability");
+      if (seatsLabel) {
+        result.replaceChildren(
+          h("span", null, label),
+          h("span", { class: "room-availability-seats" }, seatsLabel),
+        );
+      }
+      placeholder.replaceWith(result);
     } catch {
       placeholder.remove();
     }
