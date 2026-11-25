@@ -11,7 +11,7 @@ Kütüphane odaları, laboratuvarlar ve çalışma salonları için saat bazlı 
 
 | Ortak altyapı gereksinimi | Bu projede |
 |---|---|
-| FastAPI + SQLModel + SQLite, Python 3.12 | `app/` — 42 endpoint, 7 tablo |
+| FastAPI + SQLModel + SQLite, Python 3.12 | `app/` — REST API, SQLModel tabloları |
 | JWT auth + rol bazlı yetkilendirme | `student` / `admin` rolleri, OAuth2 password flow |
 | Pytest | `tests/` — 87 test |
 | Docker | `Dockerfile`, `docker-compose.yml` |
@@ -33,6 +33,8 @@ Kütüphane odaları, laboratuvarlar ve çalışma salonları için saat bazlı 
 - **QR check-in:** her rezervasyonun QR kodu (PNG) vardır. Başlangıçtan 10 dk önce açılır, 15 dk sonra kapanır (slotun bitişini aşamaz).
 - **Ceza sistemi:** no-show 2 puan, geç iptal (son 30 dk) 1 puan; 6 puanda 7 gün rezervasyon yasağı. Başlangıca 30 dk veya daha az kala (ya da slot başladıktan sonra) bekleme listesinden atanan rezervasyon ceza doğurmaz: kişinin cezasız iptal etme fırsatı hiç olmamıştır.
 - **Analitik:** gün × saat doluluk ısı haritası, saatlik/günlük yoğunluk, oda istatistikleri, özet rapor, CSV dışa aktarma.
+- **Oda geri bildirimi ve arıza bildirimi:** öğrenci ana ekrandaki oda kartından rezervasyon gerekmeksizin 1–5 puan ve isteğe bağlı yorum verir; puanını sonradan güncelleyebilir. Arıza bildirimi check-in yapılmış tamamlanmış rezervasyona bağlıdır. Oda kartında ortalama puan görünür, admin açık arızaları Yönetim sekmesinden çözüldü olarak kapatabilir.
+- **Sunum demo modu:** `.env` içinde `DEMO_MODE_ENABLED=true` yapılınca Rezervasyonlarım > Geçmiş bölümünde örnek tamamlanmış rezervasyon oluşturma düğmesi görünür; bunu arıza bildirimini sunumda test etmek için kullanın. Demo kayıtları analitik ve CSV raporlarına katılmaz. Sunumdan sonra ayarı `false` yapın.
 - **Takvim:** tek rezervasyon veya tüm yaklaşanlar için `.ics` (Google Calendar / Outlook).
 - **E-posta:** onay, hatırlatma, iptal, sıradan atama, yasak bildirimleri. Varsayılan `console` modunda gönderilmez, `EmailLog` tablosuna yazılır (`GET /admin/emails`); SMTP ayarlanırsa gerçekten gönderilir.
 

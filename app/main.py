@@ -12,7 +12,7 @@ from app.core.config import INSECURE_SECRET_KEYS, settings
 from app.core.database import create_db_and_tables, engine
 from app.core.security import hash_password
 from app.models import Role, User
-from app.routers import admin, analytics, auth, reservations, rooms, suggestions, waitlist
+from app.routers import admin, analytics, auth, feedback, reservations, rooms, suggestions, waitlist
 from app.services import jobs
 from app.services.reservation_service import BookingError
 
@@ -69,7 +69,7 @@ async def booking_error_handler(request: Request, exc: BookingError) -> JSONResp
     )
 
 
-for module in (auth, rooms, reservations, waitlist, suggestions, analytics, admin):
+for module in (auth, rooms, reservations, waitlist, suggestions, analytics, admin, feedback):
     app.include_router(module.router, prefix=settings.API_PREFIX)
 app.include_router(reservations.checkin_router, prefix=settings.API_PREFIX)
 

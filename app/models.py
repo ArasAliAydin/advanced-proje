@@ -5,6 +5,7 @@ from enum import Enum
 
 # Tüm zamanlar kampüs yerel saatinde, tz bilgisi olmadan saklanır (bkz. app/core/clock.py)
 from pydantic import NaiveDatetime
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from app.core import clock
@@ -89,12 +90,46 @@ class Reservation(SQLModel, table=True):
     seat_number: int | None = None
     status: ReservationStatus = Field(default=ReservationStatus.confirmed, index=True)
     source: ReservationSource = Field(default=ReservationSource.direct)
+    is_demo: bool = False
     checkin_code: str = Field(default_factory=_checkin_code, index=True, unique=True)
     checked_in_at: NaiveDatetime | None = None
     cancelled_at: NaiveDatetime | None = None
     cancel_reason: str | None = None
     reminder_sent: bool = False
     created_at: NaiveDatetime = Field(default_factory=clock.now)
+
+
+class RoomRating(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    reservation_id: int = Field(foreign_key="reservation.id", unique=True, index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    room_id: int = Field(foreign_key="room.id", index=True)
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = None
+    created_at: NaiveDatetime = Field(default_factory=clock.now)
+
+
+class RoomDirectRating(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "room_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    room_id: int = Field(foreign_key="room.id", index=True)
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = None
+    created_at: NaiveDatetime = Field(default_factory=clock.now)
+    updated_at: NaiveDatetime = Field(default_factory=clock.now)
+
+
+class MaintenanceIssue(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    reservation_id: int = Field(foreign_key="reservation.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    room_id: int = Field(foreign_key="room.id", index=True)
+    description: str
+    is_resolved: bool = Field(default=False, index=True)
+    created_at: NaiveDatetime = Field(default_factory=clock.now)
+    resolved_at: NaiveDatetime | None = None
 
 
 class WaitlistEntry(SQLModel, table=True):

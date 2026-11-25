@@ -326,7 +326,8 @@ async function ensureRooms() {
 
 async function renderRooms(roomId, day) {
   const main = $("#app");
-  const rooms = await ensureRooms();
+  const [rooms, myRatings] = await Promise.all([ensureRooms(), api("/feedback/room-ratings/me")]);
+  const myRatingsByRoom = new Map(myRatings.map((item) => [item.room_id, item]));
   const room = rooms.find((r) => r.id === roomId);
   day = day || today();
   const availabilityBadges = new Map();
@@ -369,9 +370,69 @@ async function renderRooms(roomId, day) {
           badge(t(`type.${r.room_type}`)),
           badge(t("common.people", { n: r.capacity })),
           badge(`${r.open_time.slice(0, 5)}–${r.close_time.slice(0, 5)}`),
+          badge(r.average_rating == null
+            ? t("rooms.rating.none")
+            : t("rooms.rating.average", {
+              rating: Number(r.average_rating).toLocaleString(i18n.locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+            })),
         )),
         favoriteButton,
       );
+      const currentRating = myRatingsByRoom.get(r.id);
+      const rateButton = h("button", {
+        type: "button",
+        class: "btn ghost small room-rate-button",
+        onclick: (event) => {
+          event.stopPropagation();
+          const ratingSelect = h("select", { id: `room-rating-${r.id}`, required: true },
+            [5, 4, 3, 2, 1].map((value) =>
+              h("option", { value, selected: value === (currentRating ? currentRating.rating : 5) },
+                t("feedback.stars", { n: value }))),
+          );
+          const comment = h("textarea", {
+            id: `room-rating-comment-${r.id}`,
+            rows: "2",
+            maxlength: "1000",
+            placeholder: t("feedback.commentOptional"),
+          });
+          comment.value = currentRating ? currentRating.comment || "" : "";
+          const ratingForm = h("form", {
+            class: "feedback-form room-rating-form",
+            onclick: (event) => event.stopPropagation(),
+            onsubmit: async (event) => {
+              event.preventDefault();
+              const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+              submitButton.disabled = true;
+              try {
+                await api(`/feedback/rooms/${r.id}/rating`, {
+                  method: "POST",
+                  json: { rating: Number(ratingSelect.value), comment: comment.value || null },
+                });
+                toast(t("feedback.rated"));
+                await renderRooms(roomId, day);
+              } catch (err) {
+                submitButton.disabled = false;
+                toastError(err);
+              }
+            },
+          },
+          h("label", { for: `room-rating-${r.id}` }, t("feedback.rating")),
+          ratingSelect,
+          h("label", { for: `room-rating-comment-${r.id}` }, t("feedback.comment")),
+          comment,
+          h("div", { class: "row" },
+            h("button", { class: "btn small", type: "submit" }, t("feedback.submitRating")),
+            h("button", {
+              class: "btn ghost small",
+              type: "button",
+              onclick: () => { ratingForm.remove(); rateButton.hidden = false; },
+            }, t("common.cancel"))),
+          );
+          card.append(ratingForm);
+          rateButton.hidden = true;
+        },
+      }, t(currentRating ? "feedback.updateRoomRating" : "feedback.rateRoom"));
+      card.append(rateButton);
       cards.set(r.id, card);
       return card;
     }),
@@ -932,7 +993,9 @@ async function showQr(reservation) {
 async function renderMe() {
   const main = $("#app");
   main.replaceChildren(h("p", { class: "muted" }, t("app.loading")));
-  const [reservations, waitlist, user] = await Promise.all([api("/reservations/me"), api("/waitlist/me"), api("/auth/me"), ensureRooms()]);
+  const [reservations, waitlist, user, demoMode] = await Promise.all([
+    api("/reservations/me"), api("/waitlist/me"), api("/auth/me"), api("/feedback/demo-mode"), ensureRooms(),
+  ]);
   state.user = user;
   const now = naive(new Date());
   const active = reservations.filter((r) => (r.status === "confirmed" || r.status === "checked_in") && r.end_time > now);
@@ -950,14 +1013,39 @@ async function renderMe() {
     } catch (err) { button.disabled = false; toastError(err); }
   };
 
-  const reservationItem = (r, actions) => h("div", { class: "list-item" },
+  const reservationItem = (r, actions, extra) => h("div", { class: "list-item" },
     h("div", null,
       h("div", { class: "row" }, h("b", null, r.room_name || roomName(r.room_id)), statusBadge(r.status),
-        r.seat_number && badge(seatText(r)), r.source === "waitlist" && badge(t("source.waitlist"), "mine")),
+        r.seat_number && badge(seatText(r)), r.source === "waitlist" && badge(t("source.waitlist"), "mine"),
+        r.is_demo && badge(t("feedback.demo.badge"), "warn")),
       h("div", { class: "muted small" }, fmtRange(r.start_time, r.end_time)),
     ),
     actions && h("div", { class: "row" }, actions),
+    extra,
   );
+
+  const feedbackForms = (r) => {
+    if (r.status !== "completed" || !r.checked_in_at) return null;
+    const issue = h("textarea", { id: `issue-${r.id}`, rows: "2", maxlength: "500", minlength: "3", required: true, placeholder: t("feedback.issuePlaceholder") });
+    const form = h("form", {
+      class: "feedback-form",
+      onsubmit: async (event) => {
+        event.preventDefault();
+        const button = event.currentTarget.querySelector("button");
+        button.disabled = true;
+        try {
+          await api(`/feedback/reservations/${r.id}/issues`, { method: "POST", json: { description: issue.value } });
+          issue.value = "";
+          toast(t("feedback.issueReported"));
+          button.disabled = false;
+        } catch (err) { button.disabled = false; toastError(err); }
+      },
+    },
+    h("label", { for: `issue-${r.id}` }, t("feedback.reportIssue")),
+    issue,
+    h("button", { class: "btn ghost small", type: "submit" }, t("feedback.submitIssue")));
+    return h("div", { class: "feedback-actions" }, form);
+  };
 
   const activeList = active.length
     ? active.map((r) => {
@@ -996,6 +1084,33 @@ async function renderMe() {
     : [h("p", { class: "muted" }, t("me.noWait"))];
 
   const banned = user.banned_until && user.banned_until > now;
+  const demoRoomSelect = h("select", { id: "feedback-demo-room" },
+    state.rooms.map((room) => h("option", { value: room.id }, room.name)),
+  );
+  const demoPanel = demoMode.enabled && state.rooms.length
+    ? h("div", { class: "feedback-demo" },
+      h("p", { class: "muted small" }, t("feedback.demo.note")),
+      h("div", { class: "row" },
+        h("label", { for: "feedback-demo-room" }, t("feedback.demo.room")),
+        demoRoomSelect,
+        h("button", {
+          class: "btn ghost small",
+          type: "button",
+          onclick: async (event) => {
+            const button = event.currentTarget;
+            button.disabled = true;
+            try {
+              await api("/feedback/demo-reservations", {
+                method: "POST", json: { room_id: Number(demoRoomSelect.value) },
+              });
+              toast(t("feedback.demo.created"));
+              await renderMe();
+            } catch (err) { button.disabled = false; toastError(err); }
+          },
+        }, t("feedback.demo.create")),
+      ),
+    )
+    : null;
   main.replaceChildren(
     h("div", { class: "stack" },
       h("div", { class: "row spread" },
@@ -1012,7 +1127,8 @@ async function renderMe() {
       h("section", { class: "card" }, h("h2", null, t("me.upcoming")), activeList),
       h("section", { class: "card" }, h("h2", null, t("me.waitlist")), waitList),
       h("section", { class: "card" }, h("h2", null, t("me.history")),
-        past.length ? past.map((r) => reservationItem(r)) : h("p", { class: "muted" }, t("me.noHistory"))),
+        demoPanel,
+        past.length ? past.map((r) => reservationItem(r, null, feedbackForms(r))) : h("p", { class: "muted" }, t("me.noHistory"))),
     ),
   );
 }

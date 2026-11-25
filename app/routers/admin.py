@@ -95,7 +95,7 @@ def export_reservations(session: SessionDep, date_from: date, date_to: date):
         select(Reservation, User, Room)
         .join(User, User.id == Reservation.user_id)
         .join(Room, Room.id == Reservation.room_id)
-        .where(Reservation.start_time >= lo, Reservation.start_time < hi)
+        .where(Reservation.start_time >= lo, Reservation.start_time < hi, Reservation.is_demo == False)  # noqa: E712
         .order_by(Reservation.start_time)
     )
     buffer = io.StringIO()
